@@ -1,4 +1,5 @@
 # Cinematic Break Pilot System
+Cinematic Break Pilot System developed during CSCI-4950 at University of Nebraska at Omaha.
 
 ## Overview
 The Cinematic Break Pilot System is a secure, low-latency media streaming service designed for movie theaters. It runs as a Dockerized server on a mini-PC within the theater network and allows patrons to seamlessly sync the ongoing movie to their devices (via a web browser) when they need to step out (e.g., for popcorn or the restroom), ensuring they don't miss any of the film.
