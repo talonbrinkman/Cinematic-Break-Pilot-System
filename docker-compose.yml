@@ -7,7 +7,7 @@ services:
     volumes:
       - ./app:/app/app
       - ./config:/config
-      - ./media:/media:ro
+      - ./media/movies:/media/movies:ro
     environment:
       - TZ=America/Chicago
     restart: unless-stopped
