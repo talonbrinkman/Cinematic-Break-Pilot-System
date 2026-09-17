@@ -1,0 +1,13 @@
+services:
+  cinematicbreak:
+    build: .
+    container_name: cinematicbreak
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./config:/config
+      - ./media:/media:ro
+    environment:
+      - TZ=America/Chicago
+    restart: unless-stopped
