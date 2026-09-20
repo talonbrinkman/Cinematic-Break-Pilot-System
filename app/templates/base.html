@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinematic Break Admin</title>
+    <link rel="stylesheet" href="/static/main.css">
+</head>
+<body>
+    <div class="header-full">
+        <div class="flex gap-15 align-center">
+            <h1 class="m-0">Cinematic Break</h1>
+        </div>
+        <div class="flex gap-15 align-center">
+            <a href="#" class="icon-link">
+                <i data-lucide="settings"></i>
+            </a>
+        </div>
+    </div>
+    
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Modal for new session -->
+    <div id="sessionModal" class="modal">
+        <div class="modal-content">
+            <h2>Start New Session</h2>
+            <form id="sessionForm" method="POST" action="/sessions">
+                <input type="hidden" id="movie_title_input" name="movie_title" value="">
+                
+                <div class="form-group">
+                    <label for="movie_title_display">Movie</label>
+                    <input type="text" id="movie_title_display" disabled>
+                </div>
+
+                <div class="form-group">
+                    <label for="session_name">Session Name (Optional)</label>
+                    <input type="text" id="session_name" name="session_name" placeholder="e.g. Evening Showing">
+                </div>
+
+                <div class="form-group">
+                    <label for="theater_number">Theater Number (Optional)</label>
+                    <input type="text" id="theater_number" name="theater_number" placeholder="e.g. 5">
+                </div>
+
+                <div class="button-group">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn">Create Session</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const modal = document.getElementById('sessionModal');
+        const titleInput = document.getElementById('movie_title_input');
+        const titleDisplay = document.getElementById('movie_title_display');
+
+        function openModal(title) {
+            titleInput.value = title;
+            titleDisplay.value = title;
+            modal.classList.add('show');
+            document.getElementById('session_name').focus();
+        }
+
+        function closeModal() {
+            modal.classList.remove('show');
+        }
+
+        // Close if clicking outside the modal content
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
+    <script src="/static/lucide.min.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

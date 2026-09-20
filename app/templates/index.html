@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="section-title">Active Sessions</div>
+    
+    {% if sessions %}
+        <div class="carousel-row">
+            {% for session in sessions %}
+                <div class="session-card">
+                    <h3>{{ session.movie_title }}</h3>
+                    <p style="font-family: monospace; font-size: 1.1em; background: var(--bg-primary); padding: 5px; text-align: center; border-radius: 4px;">{{ session.join_code }}</p>
+                    {% if session.session_name %}
+                        <p><strong>Session:</strong> {{ session.session_name }}</p>
+                    {% endif %}
+                    {% if session.theater_number %}
+                        <p><strong>Theater:</strong> {{ session.theater_number }}</p>
+                    {% endif %}
+                    <p><strong>Started:</strong> <span class="local-time" data-utc="{{ session.start_time }}"></span></p>
+                    <p><strong>Runtime:</strong> <span class="runtime" data-utc="{{ session.start_time }}">00:00:00</span></p>
+                    <p><strong>Remaining:</strong> <span class="remaining" data-utc="{{ session.start_time }}" data-duration="{{ session.duration_seconds }}">00:00:00</span></p>
+                    
+                    <img src="/sessions/{{ session.id }}/qr" style="width: 150px; height: 150px; display: block; margin: 15px auto; border-radius: 4px;" />
+                    
+                    <form method="POST" action="/sessions/{{ session.id }}/stop" style="margin-top: 10px;">
+                        <button type="submit" class="btn btn-secondary" style="width: 100%;">Stop Session</button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">No active sessions.</div>
+    {% endif %}
+
+    <div class="section-title">Recently Added Media</div>
+    
+    {% if media_items %}
+        <div class="carousel-row">
+            {% for item in media_items %}
+                <div class="media-card">
+                    <div class="poster-container">
+                        <div class="poster-text">{{ item.title }}</div>
+                        <button class="hover-play" onclick="openModal('{{ item.title | escape }}')" title="Start Session for {{ item.title }}">
+                            <i data-lucide="play" fill="currentColor"></i>
+                        </button>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">No media found in /media directory.</div>
+    {% endif %}
+
+<script>
+function formatSeconds(sec) {
+    if (sec < 0) sec = 0;
+    const h = Math.floor(sec / 3600).toString().padStart(2, '0');
+    const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+    const s = Math.floor(sec % 60).toString().padStart(2, '0');
+    return `${h}:${m}:${s}`;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll('.local-time').forEach(el => {
+        const utcStr = el.getAttribute('data-utc');
+        if (utcStr) {
+            const date = new Date(utcStr.replace(' ', 'T') + 'Z');
+            el.innerText = date.toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
+        }
+    });
+
+    setInterval(() => {
+        const now = Date.now();
+        document.querySelectorAll('.session-card').forEach(card => {
+            const runtimeEl = card.querySelector('.runtime');
+            const remainingEl = card.querySelector('.remaining');
+            
+            if (runtimeEl && remainingEl) {
+                const utcStr = runtimeEl.getAttribute('data-utc');
+                const duration = parseInt(remainingEl.getAttribute('data-duration'), 10) || 7200;
+                if (utcStr) {
+                    const start = new Date(utcStr.replace(' ', 'T') + 'Z').getTime();
+                    const elapsedSecs = Math.floor((now - start) / 1000);
+                    const remainSecs = duration - elapsedSecs;
+                    
+                    runtimeEl.innerText = formatSeconds(elapsedSecs);
+                    remainingEl.innerText = formatSeconds(remainSecs);
+                }
+            }
+        });
+    }, 1000);
+});
+</script>
+
+{% endblock %}
