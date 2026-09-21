@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,27 +18,32 @@
             margin: 0;
             text-align: center;
         }
+
         h1 {
             font-size: 3rem;
             color: #e50914;
             margin-bottom: 10px;
         }
+
         h2 {
             font-size: 2rem;
             color: #cccccc;
             margin-bottom: 40px;
         }
+
         .qr-container {
             background-color: #222222;
             padding: 30px;
             border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
         }
+
         img {
             width: 300px;
             height: 300px;
             border-radius: 8px;
         }
+
         .join-code {
             margin-top: 20px;
             font-family: monospace;
@@ -47,27 +53,29 @@
             padding: 10px;
             border-radius: 8px;
         }
+
         .empty {
             color: #888888;
             font-style: italic;
         }
     </style>
 </head>
+
 <body>
     {% if session %}
-        <h1>{{ session.movie_title }}</h1>
-        <h2>Theater {{ theater_number }}</h2>
-        <div class="qr-container">
-            <img src="/sessions/{{ session.id }}/qr" alt="Join Code QR" />
-            <div class="join-code">{{ session.join_code }}</div>
-        </div>
-        <p style="margin-top: 40px; font-size: 1.2rem; color: #aaaaaa;">Scan the QR code to join this session!</p>
+    <h1>{{ session.movie_title }}</h1>
+    <h2>Theater {{ theater_number }}</h2>
+    <div class="qr-container">
+        <img src="/sessions/{{ session.id }}/qr" alt="Join Code QR" />
+        <div class="join-code">{{ session.join_code }}</div>
+    </div>
+    <p style="margin-top: 40px; font-size: 1.2rem; color: #aaaaaa;">Scan the QR code to join this session!</p>
     {% else %}
-        <h2>Theater {{ theater_number }}</h2>
-        <h1 class="empty">No Active Session</h1>
-        <p style="font-size: 1.2rem; color: #aaaaaa;">Please wait for the next presentation to begin.</p>
+    <h2>Theater {{ theater_number }}</h2>
+    <h1 class="empty">No Active Session</h1>
+    <p style="font-size: 1.2rem; color: #aaaaaa;">Please wait for the next presentation to begin.</p>
     {% endif %}
-    
+
     <script>
         // Auto-refresh the page every 30 seconds to catch new sessions
         setInterval(() => {
@@ -75,4 +83,5 @@
         }, 30000);
     </script>
 </body>
+
 </html>

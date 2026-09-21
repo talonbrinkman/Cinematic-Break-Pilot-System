@@ -1,0 +1,236 @@
+<html>
+<head>
+    <title>Cinematic Break • {{ session.movie_title }}</title>
+    <link rel="icon" href="data:,">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <link rel="stylesheet" href="/static/main.css">
+</head>
+<body class="player-body">
+    <video id="mediaPlayer" class="player-video" playsinline crossorigin="anonymous">
+        Your browser does not support HTML video.
+    </video>
+    
+    <div id="loadingSpinner" class="loading-spinner">
+        <i data-lucide="loader-circle"></i>
+    </div>
+
+    <div id="playerOverlay" class="player-overlay pointer-events-none">
+        <div class="pointer-events-auto player-header">
+            <div style="flex: 1;">
+                <h1 class="player-title">{{ session.movie_title }}</h1>
+                {% if session.theater_number and session.theater_number != 'None' %}
+                <div class="player-subtitle">Theater {{ session.theater_number }}</div>
+                {% endif %}
+            </div>
+            <a href="#" onclick="window.close(); window.location.href='/'; return false;" class="player-close-btn" title="Close Player">
+                <i data-lucide="x"></i>
+            </a>
+        </div>
+        
+        <div class="player-controls pointer-events-auto">
+
+            
+            <div class="controls-row">
+                <div class="controls-left">
+                    <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
+                </div>
+                
+                <div class="controls-center">
+                    <button class="control-btn play-btn-large" id="playPauseBtn">
+                        <i data-lucide="pause" id="playIcon"></i>
+                    </button>
+                </div>
+                
+                <div class="controls-right">
+                    <div class="volume-container flex align-center" style="gap: 5px;">
+                        <button class="control-btn" id="muteBtn" onclick="toggleMute()">
+                            <i data-lucide="volume-2" id="volumeIcon"></i>
+                        </button>
+                        <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.05" value="1">
+                    </div>
+                    <button class="control-btn" id="fullscreenBtn">
+                        <i data-lucide="maximize"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        lucide.createIcons();
+        
+        const video = document.getElementById('mediaPlayer');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const playBtn = document.getElementById('playPauseBtn');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const muteBtn = document.getElementById('muteBtn');
+        
+        const initialElapsed = parseInt("{{ session.elapsed_seconds }}", 10) || 0;
+        const pageLoadTime = Date.now();
+        const duration = parseInt("{{ session.duration_seconds }}", 10) || 7200;
+        
+        let hasInitiallySeeked = false;
+
+        function getLiveTime() {
+            const now = Date.now();
+            let actualDur = duration;
+            if (video.duration && !isNaN(video.duration) && video.duration !== Infinity) {
+                actualDur = Math.min(duration, video.duration);
+            }
+            return Math.max(0, Math.min(actualDur, initialElapsed + (now - pageLoadTime) / 1000));
+        }
+
+        video.src = "/stream/{{ session.join_code }}#t=" + getLiveTime();
+
+        video.addEventListener('loadedmetadata', () => {
+            if (!hasInitiallySeeked) {
+                video.currentTime = getLiveTime();
+                hasInitiallySeeked = true;
+                video.play().catch(e => console.log("Auto-play prevented", e));
+            }
+        });
+
+        video.addEventListener('waiting', () => loadingSpinner.style.opacity = '1');
+        video.addEventListener('playing', () => loadingSpinner.style.opacity = '0');
+        video.addEventListener('canplay', () => loadingSpinner.style.opacity = '0');
+
+        function togglePlay() {
+            if (video.paused) {
+                // Ensure we don't play past live time and resync
+                if (typeof seekFailed === 'undefined' || !seekFailed) {
+                    const live = getLiveTime();
+                    if (Math.abs(video.currentTime - live) > 2) {
+                        video.currentTime = live;
+                    }
+                }
+                video.play();
+            } else {
+                video.pause();
+            }
+        }
+        
+        playBtn.addEventListener('click', togglePlay);
+        video.addEventListener('click', togglePlay);
+
+        video.addEventListener('play', () => {
+            playBtn.innerHTML = '<i data-lucide="pause"></i>';
+            lucide.createIcons();
+        });
+        video.addEventListener('pause', () => {
+            playBtn.innerHTML = '<i data-lucide="play"></i>';
+            lucide.createIcons();
+        });
+
+        function formatTime(seconds) {
+            if (isNaN(seconds) || seconds < 0) return "0:00";
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        let lastSyncTime = 0;
+        let seekFailed = false;
+        
+        // Live syncing check
+        video.addEventListener('timeupdate', () => {
+            if (seekFailed) return;
+            
+            const liveTime = getLiveTime();
+            let actualDur = duration;
+            if (video.duration && !isNaN(video.duration) && video.duration !== Infinity) {
+                actualDur = Math.min(duration, video.duration);
+            }
+            
+            if (liveTime >= actualDur - 1) return;
+            
+            // Force sync if we deviate by more than 5 seconds from server live time
+            if (!video.paused && !video.seeking && Math.abs(video.currentTime - liveTime) > 5) {
+                if (Date.now() - lastSyncTime > 10000) {
+                    const targetTime = liveTime;
+                    video.currentTime = targetTime;
+                    lastSyncTime = Date.now();
+                    
+                    setTimeout(() => {
+                        if (!video.seeking && Math.abs(video.currentTime - targetTime) > 5) {
+                            console.warn("Seek failed. Disabling live sync to prevent loop.");
+                            seekFailed = true;
+                        }
+                    }, 3000);
+                }
+            }
+            
+            // Always show LIVE
+            timeDisplay.innerHTML = `${formatTime(video.currentTime)} / ${formatTime(actualDur)} <span style="color: #e50914; margin-left: 10px; font-weight: bold;">• LIVE</span>`;
+        });
+
+        volumeSlider.addEventListener('input', (e) => {
+            video.volume = e.target.value;
+            video.muted = video.volume === 0;
+            updateVolumeIcon();
+        });
+
+        function toggleMute() {
+            video.muted = !video.muted;
+            if (video.muted) {
+                volumeSlider.value = 0;
+            } else {
+                if (video.volume === 0) video.volume = 1;
+                volumeSlider.value = video.volume;
+            }
+            updateVolumeIcon();
+        }
+
+        function updateVolumeIcon() {
+            let icon = 'volume-2';
+            if (video.muted || video.volume == 0) icon = 'volume-x';
+            else if (video.volume < 0.5) icon = 'volume-1';
+            muteBtn.innerHTML = `<i data-lucide="${icon}"></i>`;
+            lucide.createIcons();
+        }
+
+        fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => console.log(err));
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            const icon = document.fullscreenElement ? 'minimize' : 'maximize';
+            fullscreenBtn.innerHTML = `<i data-lucide="${icon}"></i>`;
+            lucide.createIcons();
+        });
+
+        const overlay = document.getElementById('playerOverlay');
+        let hideTimeout;
+        function showOverlay() {
+            overlay.style.opacity = '1';
+            document.body.style.cursor = 'default';
+            clearTimeout(hideTimeout);
+            hideTimeout = setTimeout(() => {
+                if (!video.paused) {
+                    overlay.style.opacity = '0';
+                    document.body.style.cursor = 'none';
+                }
+            }, 3000);
+        }
+        document.addEventListener('mousemove', showOverlay);
+        video.addEventListener('pause', showOverlay);
+        showOverlay();
+        
+        // Prevent default spacebar scrolling and use for play/pause
+        window.addEventListener('keydown', function(e) {
+            if(e.keyCode == 32 && e.target == document.body) {
+                e.preventDefault();
+                togglePlay();
+            }
+        });
+    </script>
+</body>
+</html>

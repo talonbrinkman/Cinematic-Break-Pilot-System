@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, Depends, Form, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import sqlite3
@@ -44,7 +44,7 @@ def get_video_duration(file_path: str) -> int:
 async def home(request: Request, db: sqlite3.Connection = Depends(get_db)):
     # Fetch active sessions
     cursor = db.cursor()
-    cursor.execute("SELECT * FROM sessions ORDER BY start_time DESC")
+    cursor.execute("SELECT *, strftime('%s', 'now') - strftime('%s', start_time) AS elapsed_seconds FROM sessions ORDER BY start_time DESC")
     active_sessions = cursor.fetchall()
     
     # Scan media directory recursively
@@ -108,15 +108,18 @@ async def stop_session(session_id: int, db: sqlite3.Connection = Depends(get_db)
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/sessions/{session_id}/qr")
-async def get_session_qr(session_id: int, db: sqlite3.Connection = Depends(get_db)):
+async def get_session_qr(request: Request, session_id: int, db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("SELECT join_code FROM sessions WHERE id = ?", (session_id,))
-    row = cursor.fetchone()
-    if not row:
+    session = cursor.fetchone()
+    if not session:
         return Response(status_code=404)
         
-    join_code = row['join_code']
-    img = qrcode.make(join_code)
+    player_url = f"{request.base_url}player/{session['join_code']}"
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(player_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="white", back_color="#111111")
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return Response(content=buf.getvalue(), media_type="image/png")
@@ -127,3 +130,88 @@ async def view_theater(request: Request, theater_number: str, db: sqlite3.Connec
     cursor.execute("SELECT * FROM sessions WHERE theater_number = ?", (theater_number,))
     session = cursor.fetchone()
     return templates.TemplateResponse("theater.html", {"request": request, "session": session, "theater_number": theater_number})
+
+@app.get("/player/{join_code}")
+async def view_player(request: Request, join_code: str, db: sqlite3.Connection = Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT *, strftime('%s', 'now') - strftime('%s', start_time) AS elapsed_seconds FROM sessions WHERE join_code = ?", (join_code,))
+    session = cursor.fetchone()
+    if not session:
+        return HTMLResponse("<h1>Session not found or has ended.</h1>", status_code=404)
+    
+    return templates.TemplateResponse("player.html", {"request": request, "session": session})
+
+@app.get("/stream/{join_code}")
+async def stream_media(request: Request, join_code: str, db: sqlite3.Connection = Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT movie_title FROM sessions WHERE join_code = ?", (join_code,))
+    session = cursor.fetchone()
+    if not session:
+        return Response(status_code=404)
+    
+    movie_title = session['movie_title']
+    
+    file_path = None
+    if os.path.exists(MEDIA_DIR):
+        for root, dirs, files in os.walk(MEDIA_DIR):
+            for f in files:
+                if not f.startswith("."):
+                    title = os.path.splitext(f)[0].replace(".", " ").replace("_", " ").title()
+                    if title == movie_title:
+                        file_path = os.path.join(root, f)
+                        break
+            if file_path:
+                break
+                
+    if not file_path or not os.path.exists(file_path):
+        return Response(status_code=404)
+        
+    file_size = os.stat(file_path).st_size
+    range_header = request.headers.get("range")
+    
+    def stream_file(path: str, start: int, end: int):
+        with open(path, "rb") as f:
+            f.seek(start)
+            remaining = end - start + 1
+            chunk_size = 1024 * 1024 * 2 # 2MB chunks
+            while remaining > 0:
+                chunk = f.read(min(chunk_size, remaining))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+                yield chunk
+
+    if range_header:
+        range_match = range_header.strip().split("=")[-1]
+        range_parts = range_match.split("-")
+        start = int(range_parts[0]) if range_parts[0] else 0
+        end = int(range_parts[1]) if len(range_parts) > 1 and range_parts[1] else file_size - 1
+        
+        start = max(0, min(start, file_size - 1))
+        end = max(start, min(end, file_size - 1))
+        
+        length = end - start + 1
+        
+        headers = {
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(length),
+        }
+        
+        return StreamingResponse(
+            stream_file(file_path, start, end),
+            status_code=206,
+            headers=headers,
+            media_type="video/mp4"
+        )
+    else:
+        headers = {
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(file_size),
+        }
+        return StreamingResponse(
+            stream_file(file_path, 0, file_size - 1),
+            status_code=200,
+            headers=headers,
+            media_type="video/mp4"
+        )

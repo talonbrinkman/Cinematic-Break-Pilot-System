@@ -7,17 +7,17 @@
         <div class="carousel-row">
             {% for session in sessions %}
                 <div class="session-card">
-                    <h3>{{ session.movie_title }}</h3>
-                    <p style="font-family: monospace; font-size: 1.1em; background: var(--bg-primary); padding: 5px; text-align: center; border-radius: 4px;">{{ session.join_code }}</p>
+                    <h3><a href="/player/{{ session.join_code }}" target="_blank" style="color: white; text-decoration: none;">{{ session.movie_title }}</a></h3>
+                    <p style="font-family: monospace; font-size: 1.1em; background: var(--bg-primary); padding: 5px; text-align: center; border-radius: 4px; cursor: pointer; color: var(--accent-primary);" onclick="copyText('{{ session.join_code }}', this)" title="Click to copy">{{ session.join_code }}</p>
                     {% if session.session_name %}
                         <p><strong>Session:</strong> {{ session.session_name }}</p>
                     {% endif %}
-                    {% if session.theater_number %}
+                    {% if session.theater_number and session.theater_number != 'None' %}
                         <p><strong>Theater:</strong> {{ session.theater_number }}</p>
                     {% endif %}
                     <p><strong>Started:</strong> <span class="local-time" data-utc="{{ session.start_time }}"></span></p>
-                    <p><strong>Runtime:</strong> <span class="runtime" data-utc="{{ session.start_time }}">00:00:00</span></p>
-                    <p><strong>Remaining:</strong> <span class="remaining" data-utc="{{ session.start_time }}" data-duration="{{ session.duration_seconds }}">00:00:00</span></p>
+                    <p><strong>Runtime:</strong> <span class="runtime" data-elapsed="{{ session.elapsed_seconds }}">00:00:00</span></p>
+                    <p><strong>Remaining:</strong> <span class="remaining" data-elapsed="{{ session.elapsed_seconds }}" data-duration="{{ session.duration_seconds }}">00:00:00</span></p>
                     
                     <img src="/sessions/{{ session.id }}/qr" style="width: 150px; height: 150px; display: block; margin: 15px auto; border-radius: 4px;" />
                     
@@ -51,6 +51,43 @@
     {% endif %}
 
 <script>
+function fallbackCopyTextToClipboard(text, el) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.position = "fixed";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            const original = el.innerText;
+            el.innerText = 'Copied!';
+            setTimeout(() => el.innerText = original, 1000);
+        }
+    } catch (err) {
+        console.error('Fallback: Oops, unable to copy', err);
+    }
+    document.body.removeChild(textArea);
+}
+
+function copyText(text, el) {
+    if (!navigator.clipboard) {
+        fallbackCopyTextToClipboard(text, el);
+        return;
+    }
+    navigator.clipboard.writeText(text).then(function() {
+        const original = el.innerText;
+        el.innerText = 'Copied!';
+        setTimeout(() => el.innerText = original, 1000);
+    }, function(err) {
+        console.error('Async: Could not copy text: ', err);
+        fallbackCopyTextToClipboard(text, el);
+    });
+}
+
 function formatSeconds(sec) {
     if (sec < 0) sec = 0;
     const h = Math.floor(sec / 3600).toString().padStart(2, '0');
@@ -60,6 +97,7 @@ function formatSeconds(sec) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    const pageLoadTime = Date.now();
     document.querySelectorAll('.local-time').forEach(el => {
         const utcStr = el.getAttribute('data-utc');
         if (utcStr) {
@@ -75,11 +113,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const remainingEl = card.querySelector('.remaining');
             
             if (runtimeEl && remainingEl) {
-                const utcStr = runtimeEl.getAttribute('data-utc');
+                const initialElapsed = parseInt(runtimeEl.getAttribute('data-elapsed'), 10);
                 const duration = parseInt(remainingEl.getAttribute('data-duration'), 10) || 7200;
-                if (utcStr) {
-                    const start = new Date(utcStr.replace(' ', 'T') + 'Z').getTime();
-                    const elapsedSecs = Math.floor((now - start) / 1000);
+                if (!isNaN(initialElapsed)) {
+                    const elapsedSecs = initialElapsed + Math.floor((now - pageLoadTime) / 1000);
                     const remainSecs = duration - elapsedSecs;
                     
                     runtimeEl.innerText = formatSeconds(elapsedSecs);

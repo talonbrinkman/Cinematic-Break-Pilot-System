@@ -30,6 +30,15 @@ Open your web browser and navigate to:
 
 Here you will see the Admin dashboard displaying active sessions and your recently added media. Click the play button over a media poster to create a new active session!
 
+#### Accessing from Other Devices (Phones, Tablets)
+To access the app from another device on the same Wi-Fi network (like a patron's phone), you need to navigate to the host machine's Local IP Address instead of `localhost` (e.g., `http://192.168.1.15:8000`).
+
+**Windows Networking Quirk:** If you are hosting on a Windows machine and other devices cannot connect (the page just spins), your Wi-Fi connection is likely set to **Public**. Windows Defender Firewall strictly blocks all incoming connections on "Public" networks.
+To fix this:
+1. Open Windows **Settings** -> **Network & internet** -> **Wi-Fi**.
+2. Click your connected Wi-Fi network.
+3. Change the "Network profile type" from **Public** to **Private**.
+
 ### Stopping the Server
 To stop the server, run:
 ```bash
