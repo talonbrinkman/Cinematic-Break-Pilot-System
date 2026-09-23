@@ -14,9 +14,28 @@ def init_db():
             theater_number TEXT,
             movie_title TEXT NOT NULL,
             duration_seconds INTEGER DEFAULT 0,
-            start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_paused INTEGER DEFAULT 0,
+            accumulated_seconds INTEGER DEFAULT 0,
+            last_updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    ''')
+    
+    # Safely try to add columns to an existing table
+    try:
+        cursor.execute("ALTER TABLE sessions ADD COLUMN is_paused INTEGER DEFAULT 0")
+        cursor.execute("ALTER TABLE sessions ADD COLUMN accumulated_seconds INTEGER DEFAULT 0")
+        cursor.execute("ALTER TABLE sessions ADD COLUMN last_updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    except sqlite3.OperationalError:
+        pass # Columns already exist
+
     conn.commit()
     conn.close()
 

@@ -48,6 +48,9 @@
                         </button>
                         <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.05" value="1">
                     </div>
+                    <button class="control-btn" id="aspectRatioBtn" onclick="toggleAspectRatio()" title="Aspect Ratio: Fit">
+                        <i data-lucide="rectangle-horizontal"></i>
+                    </button>
                     <button class="control-btn" id="fullscreenBtn">
                         <i data-lucide="maximize"></i>
                     </button>
@@ -57,6 +60,7 @@
     </div>
 
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script>
         lucide.createIcons();
         
@@ -68,36 +72,115 @@
         const volumeSlider = document.getElementById('volumeSlider');
         const muteBtn = document.getElementById('muteBtn');
         
-        const initialElapsed = parseInt("{{ session.elapsed_seconds }}", 10) || 0;
-        const pageLoadTime = Date.now();
+        let serverElapsed = parseInt("{{ session.elapsed_seconds }}", 10) || 0;
+        let lastSyncLocalTime = Date.now();
         const duration = parseInt("{{ session.duration_seconds }}", 10) || 7200;
+        let isAdminPaused = {{ 'true' if session.is_paused else 'false' }};
         
         let hasInitiallySeeked = false;
 
         function getLiveTime() {
-            const now = Date.now();
             let actualDur = duration;
             if (video.duration && !isNaN(video.duration) && video.duration !== Infinity) {
                 actualDur = Math.min(duration, video.duration);
             }
-            return Math.max(0, Math.min(actualDur, initialElapsed + (now - pageLoadTime) / 1000));
+            if (isAdminPaused) {
+                return Math.max(0, Math.min(actualDur, serverElapsed));
+            }
+            const now = Date.now();
+            return Math.max(0, Math.min(actualDur, serverElapsed + (now - lastSyncLocalTime) / 1000));
         }
 
-        video.src = "/stream/{{ session.join_code }}#t=" + getLiveTime();
+        const useHls = {{ 'true' if use_hls else 'false' }};
+        const hlsUrl = "/static/hls/{{ session.id }}/index.m3u8";
+        const streamUrl = "/stream/{{ session.join_code }}";
 
-        video.addEventListener('loadedmetadata', () => {
-            if (!hasInitiallySeeked) {
-                video.currentTime = getLiveTime();
-                hasInitiallySeeked = true;
-                video.play().catch(e => console.log("Auto-play prevented", e));
+        if (useHls) {
+            function initHls() {
+                if (Hls.isSupported()) {
+                    const hls = new Hls({
+                        startPosition: getLiveTime(),
+                        manifestLoadingMaxRetry: 10,
+                        manifestLoadingRetryDelay: 1000,
+                        manifestLoadingTimeOut: 10000
+                    });
+                    
+                    let recoverDecodingErrorDate = null;
+                    hls.on(Hls.Events.ERROR, function(event, data) {
+                        if (data.fatal) {
+                            switch (data.type) {
+                                case Hls.ErrorTypes.NETWORK_ERROR:
+                                    console.log("fatal network error encountered, try to recover");
+                                    hls.startLoad();
+                                    break;
+                                case Hls.ErrorTypes.MEDIA_ERROR:
+                                    console.log("fatal media error encountered, try to recover");
+                                    const now = performance.now();
+                                    if (!recoverDecodingErrorDate || (now - recoverDecodingErrorDate) > 3000) {
+                                        recoverDecodingErrorDate = performance.now();
+                                        hls.recoverMediaError();
+                                    } else {
+                                        console.error("Unrecoverable media error - destroying player");
+                                        hls.destroy();
+                                    }
+                                    break;
+                                default:
+                                    hls.destroy();
+                                    break;
+                            }
+                        }
+                    });
+
+                    hls.loadSource(hlsUrl);
+                    hls.attachMedia(video);
+                    hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                        if (!hasInitiallySeeked) {
+                            hasInitiallySeeked = true;
+                            video.play().catch(e => console.log("Auto-play prevented", e));
+                        }
+                    });
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = hlsUrl;
+                    video.addEventListener('loadedmetadata', () => {
+                        if (!hasInitiallySeeked) {
+                            video.currentTime = getLiveTime();
+                            hasInitiallySeeked = true;
+                            video.play().catch(e => console.log("Auto-play prevented", e));
+                        }
+                    });
+                }
             }
-        });
+
+            // Poll until the manifest is generated by ffmpeg
+            function waitForManifest() {
+                fetch(hlsUrl, { method: 'HEAD', cache: 'no-store' })
+                    .then(response => {
+                        if (response.ok) {
+                            initHls();
+                        } else {
+                            setTimeout(waitForManifest, 1000);
+                        }
+                    })
+                    .catch(() => setTimeout(waitForManifest, 1000));
+            }
+            waitForManifest();
+        } else {
+            video.src = streamUrl + "#t=" + getLiveTime();
+            video.addEventListener('loadedmetadata', () => {
+                if (!hasInitiallySeeked) {
+                    video.currentTime = getLiveTime();
+                    hasInitiallySeeked = true;
+                    video.play().catch(e => console.log("Auto-play prevented", e));
+                }
+            });
+        }
 
         video.addEventListener('waiting', () => loadingSpinner.style.opacity = '1');
         video.addEventListener('playing', () => loadingSpinner.style.opacity = '0');
         video.addEventListener('canplay', () => loadingSpinner.style.opacity = '0');
 
         function togglePlay() {
+            if (isAdminPaused) return; // Ignore user play/pause if admin paused
             if (video.paused) {
                 // Ensure we don't play past live time and resync
                 if (typeof seekFailed === 'undefined' || !seekFailed) {
@@ -142,9 +225,6 @@
             
             const liveTime = getLiveTime();
             let actualDur = duration;
-            if (video.duration && !isNaN(video.duration) && video.duration !== Infinity) {
-                actualDur = Math.min(duration, video.duration);
-            }
             
             if (liveTime >= actualDur - 1) return;
             
@@ -224,6 +304,27 @@
         video.addEventListener('pause', showOverlay);
         showOverlay();
         
+        const aspectModes = ['contain', 'cover', 'fill'];
+        const aspectNames = ['Fit', 'Crop', 'Stretch'];
+        let currentAspect = 0;
+        
+        function toggleAspectRatio() {
+            currentAspect = (currentAspect + 1) % aspectModes.length;
+            video.style.objectFit = aspectModes[currentAspect];
+            const btn = document.getElementById('aspectRatioBtn');
+            btn.title = 'Aspect Ratio: ' + aspectNames[currentAspect];
+            
+            // Show overlay notification
+            const notification = document.createElement('div');
+            notification.style.cssText = 'position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 4px; font-weight: bold; z-index: 2000; transition: opacity 0.5s; pointer-events: none;';
+            notification.innerText = 'Aspect Ratio: ' + aspectNames[currentAspect];
+            document.getElementById('playerOverlay').appendChild(notification);
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 500);
+            }, 1500);
+        }
+        
         // Prevent default spacebar scrolling and use for play/pause
         window.addEventListener('keydown', function(e) {
             if(e.keyCode == 32 && e.target == document.body) {
@@ -231,6 +332,61 @@
                 togglePlay();
             }
         });
+        
+        // Admin pause overlay
+        const adminPauseOverlay = document.createElement('div');
+        adminPauseOverlay.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); color: white; display: flex; align-items: center; justify-content: center; font-size: 2em; z-index: 1000; font-weight: bold; pointer-events: none;';
+        adminPauseOverlay.innerHTML = '<i data-lucide="pause-circle" style="width: 48px; height: 48px; margin-right: 15px;"></i> Session Paused by Admin';
+        adminPauseOverlay.style.display = 'none';
+        document.getElementById('playerOverlay').appendChild(adminPauseOverlay);
+        lucide.createIcons();
+        
+        function updateAdminPauseState(paused) {
+            isAdminPaused = paused;
+            if (paused) {
+                video.pause();
+                adminPauseOverlay.style.display = 'flex';
+                playBtn.disabled = true;
+                playBtn.style.opacity = '0.5';
+            } else {
+                adminPauseOverlay.style.display = 'none';
+                playBtn.disabled = false;
+                playBtn.style.opacity = '1';
+                // re-sync video to new live time
+                video.currentTime = getLiveTime();
+                video.play().catch(e => console.log("Auto-play prevented", e));
+            }
+        }
+        
+        if (isAdminPaused) {
+            updateAdminPauseState(true);
+        }
+
+        // Poll server for state
+        setInterval(async () => {
+            try {
+                const res = await fetch(`/sessions/{{ session.id }}/state`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const wasPaused = isAdminPaused;
+                    serverElapsed = data.elapsed_seconds;
+                    lastSyncLocalTime = Date.now();
+                    
+                    if (data.is_paused !== wasPaused) {
+                        updateAdminPauseState(data.is_paused);
+                    } else if (!data.is_paused) {
+                        // just a normal time sync, handle drifted sync
+                        const live = getLiveTime();
+                        if (!video.paused && !video.seeking && Math.abs(video.currentTime - live) > 5) {
+                            video.currentTime = live;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to poll session state", e);
+            }
+        }, 5000);
+
     </script>
 </body>
 </html>

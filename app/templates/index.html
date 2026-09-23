@@ -1,131 +1,162 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div class="section-title">Active Sessions</div>
-    
-    {% if sessions %}
-        <div class="carousel-row">
-            {% for session in sessions %}
-                <div class="session-card">
-                    <h3><a href="/player/{{ session.join_code }}" target="_blank" style="color: white; text-decoration: none;">{{ session.movie_title }}</a></h3>
-                    <p style="font-family: monospace; font-size: 1.1em; background: var(--bg-primary); padding: 5px; text-align: center; border-radius: 4px; cursor: pointer; color: var(--accent-primary);" onclick="copyText('{{ session.join_code }}', this)" title="Click to copy">{{ session.join_code }}</p>
-                    {% if session.session_name %}
-                        <p><strong>Session:</strong> {{ session.session_name }}</p>
-                    {% endif %}
-                    {% if session.theater_number and session.theater_number != 'None' %}
-                        <p><strong>Theater:</strong> {{ session.theater_number }}</p>
-                    {% endif %}
-                    <p><strong>Started:</strong> <span class="local-time" data-utc="{{ session.start_time }}"></span></p>
-                    <p><strong>Runtime:</strong> <span class="runtime" data-elapsed="{{ session.elapsed_seconds }}">00:00:00</span></p>
-                    <p><strong>Remaining:</strong> <span class="remaining" data-elapsed="{{ session.elapsed_seconds }}" data-duration="{{ session.duration_seconds }}">00:00:00</span></p>
-                    
-                    <img src="/sessions/{{ session.id }}/qr" style="width: 150px; height: 150px; display: block; margin: 15px auto; border-radius: 4px;" />
-                    
-                    <form method="POST" action="/sessions/{{ session.id }}/stop" style="margin-top: 10px;">
-                        <button type="submit" class="btn btn-secondary" style="width: 100%;">Stop Session</button>
-                    </form>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="empty-state">No active sessions.</div>
-    {% endif %}
+<div class="section-title">Active Sessions</div>
 
-    <div class="section-title">Recently Added Media</div>
-    
-    {% if media_items %}
-        <div class="carousel-row">
-            {% for item in media_items %}
-                <div class="media-card">
-                    <div class="poster-container">
-                        <div class="poster-text">{{ item.title }}</div>
-                        <button class="hover-play" onclick="openModal('{{ item.title | escape }}')" title="Start Session for {{ item.title }}">
-                            <i data-lucide="play" fill="currentColor"></i>
-                        </button>
-                    </div>
-                </div>
-            {% endfor %}
+{% if sessions %}
+<div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: start;">
+    <form method="POST" action="/sessions/pause_all" style="margin: 0;">
+        <button type="submit" class="btn btn-secondary">Pause All Sessions</button>
+    </form>
+    <form method="POST" action="/sessions/resume_all" style="margin: 0;">
+        <button type="submit" class="btn btn-secondary">Resume All Sessions</button>
+    </form>
+    <form method="POST" action="/sessions/stop_all" style="margin: 0;"
+        onsubmit="return confirm('Are you sure you want to end all sessions?');">
+        <button type="submit" class="btn btn-danger"
+            style="background-color: var(--accent-primary); border: none; color: white; padding: 10px 20px; border-radius: 4px; font-weight: 500; cursor: pointer;">End
+            All Sessions</button>
+    </form>
+</div>
+<div class="carousel-row">
+    {% for session in sessions %}
+    <div class="session-card">
+        <h3><a href="/player/{{ session.join_code }}" target="_blank" style="color: white; text-decoration: none;">{{
+                session.movie_title }}</a></h3>
+        <p style="font-family: monospace; font-size: 1.1em; background: var(--bg-primary); padding: 5px; text-align: center; border-radius: 4px; cursor: pointer; color: var(--accent-primary);"
+            onclick="copyText('{{ base_url }}player/{{ session.join_code }}', this)" title="Click to copy full link">{{ session.join_code }}</p>
+        {% if session.session_name %}
+        <p><strong>Session:</strong> {{ session.session_name }}</p>
+        {% endif %}
+        {% if session.theater_number and session.theater_number != 'None' %}
+        <p><strong>Theater:</strong> {{ session.theater_number }}</p>
+        {% endif %}
+        <p><strong>Started:</strong> <span class="local-time" data-utc="{{ session.start_time }}"></span></p>
+        <p><strong>Status:</strong> {% if session.is_paused %}<span style="color: #ff9800;">Paused</span>{% else %}<span
+                style="color: #4caf50;">Playing</span>{% endif %}</p>
+        <p><strong>Runtime:</strong> <span class="runtime" data-elapsed="{{ session.elapsed_seconds }}"
+                data-paused="{{ 'true' if session.is_paused else 'false' }}">00:00:00</span></p>
+        <p><strong>Remaining:</strong> <span class="remaining" data-elapsed="{{ session.elapsed_seconds }}"
+                data-duration="{{ session.duration_seconds }}">00:00:00</span></p>
+
+        <img src="/sessions/{{ session.id }}/qr"
+            style="width: 150px; height: 150px; display: block; margin: 15px auto; border-radius: 4px;" />
+
+        <form method="POST" action="/sessions/{{ session.id }}/stop" style="margin-top: 10px;">
+            <button type="submit" class="btn btn-secondary" style="width: 100%;">Stop Session</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">No active sessions.</div>
+{% endif %}
+
+<div class="section-title">Recently Added Media</div>
+
+{% if media_items %}
+<div class="carousel-row">
+    {% for item in media_items %}
+    <div class="media-card">
+        <div class="poster-container">
+            <div class="poster-text">{{ item.title }}</div>
+            <button class="hover-play" onclick="openModal('{{ item.title | escape }}')"
+                title="Start Session for {{ item.title }}">
+                <i data-lucide="play" fill="currentColor"></i>
+            </button>
         </div>
-    {% else %}
-        <div class="empty-state">No media found in /media directory.</div>
-    {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">No media found in /media directory.</div>
+{% endif %}
 
 <script>
-function fallbackCopyTextToClipboard(text, el) {
-    const textArea = document.createElement("textarea");
-    textArea.value = text;
-    textArea.style.top = "0";
-    textArea.style.left = "0";
-    textArea.style.position = "fixed";
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-    try {
-        const successful = document.execCommand('copy');
-        if (successful) {
+    function fallbackCopyTextToClipboard(text, el) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                const original = el.innerText;
+                el.innerText = 'Copied!';
+                setTimeout(() => el.innerText = original, 1000);
+            }
+        } catch (err) {
+            console.error('Fallback: Oops, unable to copy', err);
+        }
+        document.body.removeChild(textArea);
+    }
+
+    function copyText(text, el) {
+        if (!navigator.clipboard) {
+            fallbackCopyTextToClipboard(text, el);
+            return;
+        }
+        navigator.clipboard.writeText(text).then(function () {
             const original = el.innerText;
             el.innerText = 'Copied!';
             setTimeout(() => el.innerText = original, 1000);
-        }
-    } catch (err) {
-        console.error('Fallback: Oops, unable to copy', err);
+        }, function (err) {
+            console.error('Async: Could not copy text: ', err);
+            fallbackCopyTextToClipboard(text, el);
+        });
     }
-    document.body.removeChild(textArea);
-}
 
-function copyText(text, el) {
-    if (!navigator.clipboard) {
-        fallbackCopyTextToClipboard(text, el);
-        return;
+    function formatSeconds(sec) {
+        if (sec < 0) sec = 0;
+        const h = Math.floor(sec / 3600).toString().padStart(2, '0');
+        const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+        const s = Math.floor(sec % 60).toString().padStart(2, '0');
+        return `${h}:${m}:${s}`;
     }
-    navigator.clipboard.writeText(text).then(function() {
-        const original = el.innerText;
-        el.innerText = 'Copied!';
-        setTimeout(() => el.innerText = original, 1000);
-    }, function(err) {
-        console.error('Async: Could not copy text: ', err);
-        fallbackCopyTextToClipboard(text, el);
-    });
-}
 
-function formatSeconds(sec) {
-    if (sec < 0) sec = 0;
-    const h = Math.floor(sec / 3600).toString().padStart(2, '0');
-    const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
-    const s = Math.floor(sec % 60).toString().padStart(2, '0');
-    return `${h}:${m}:${s}`;
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    const pageLoadTime = Date.now();
-    document.querySelectorAll('.local-time').forEach(el => {
-        const utcStr = el.getAttribute('data-utc');
-        if (utcStr) {
-            const date = new Date(utcStr.replace(' ', 'T') + 'Z');
-            el.innerText = date.toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
-        }
-    });
-
-    setInterval(() => {
-        const now = Date.now();
-        document.querySelectorAll('.session-card').forEach(card => {
-            const runtimeEl = card.querySelector('.runtime');
-            const remainingEl = card.querySelector('.remaining');
-            
-            if (runtimeEl && remainingEl) {
-                const initialElapsed = parseInt(runtimeEl.getAttribute('data-elapsed'), 10);
-                const duration = parseInt(remainingEl.getAttribute('data-duration'), 10) || 7200;
-                if (!isNaN(initialElapsed)) {
-                    const elapsedSecs = initialElapsed + Math.floor((now - pageLoadTime) / 1000);
-                    const remainSecs = duration - elapsedSecs;
-                    
-                    runtimeEl.innerText = formatSeconds(elapsedSecs);
-                    remainingEl.innerText = formatSeconds(remainSecs);
-                }
+    document.addEventListener("DOMContentLoaded", () => {
+        const pageLoadTime = Date.now();
+        document.querySelectorAll('.local-time').forEach(el => {
+            const utcStr = el.getAttribute('data-utc');
+            if (utcStr) {
+                const date = new Date(utcStr.replace(' ', 'T') + 'Z');
+                el.innerText = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
             }
         });
-    }, 1000);
-});
+
+        setInterval(() => {
+            const now = Date.now();
+            document.querySelectorAll('.session-card').forEach(card => {
+                const runtimeEl = card.querySelector('.runtime');
+                const remainingEl = card.querySelector('.remaining');
+
+                if (runtimeEl && remainingEl) {
+                    const isPaused = runtimeEl.getAttribute('data-paused') === 'true';
+                    const initialElapsed = parseInt(runtimeEl.getAttribute('data-elapsed'), 10);
+                    const duration = parseInt(remainingEl.getAttribute('data-duration'), 10) || 7200;
+                    if (!isNaN(initialElapsed)) {
+                        let elapsedSecs = initialElapsed;
+                        if (!isPaused) {
+                            elapsedSecs += Math.floor((now - pageLoadTime) / 1000);
+                        }
+                        const remainSecs = duration - elapsedSecs;
+
+                        if (remainSecs <= 0 && !isPaused) {
+                            // Reload the page to clear the session once it's ended
+                            window.location.reload();
+                        } else {
+                            runtimeEl.innerText = formatSeconds(elapsedSecs);
+                            remainingEl.innerText = formatSeconds(Math.max(0, remainSecs));
+                        }
+                    }
+                }
+            });
+        }, 1000);
+    });
 </script>
 
 {% endblock %}
