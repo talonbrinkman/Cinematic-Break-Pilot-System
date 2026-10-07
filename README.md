@@ -2,6 +2,13 @@
 
 Cinematic Break Pilot System is a secure, low-latency media streaming service designed for movie theaters. It runs as a Dockerized server on a mini-PC within the theater network, allowing patrons to seamlessly sync the ongoing movie to their devices.
 
+### Key Security & Sync Features
+- **Ultra Low-Latency Sync:** Sub-10ms delay using client-side Network Round-Trip Time (RTT) latency estimation to perfectly align device clocks.
+- **Ticket Validation System:** Built-in 6-digit ticket generator and validator to prevent unauthorized access (designed to be easily swapped out for a 3rd-party POS database later).
+- **Stream Security (DRM):** AES-128 on-the-fly HLS stream encryption preventing raw video scraping.
+- **Client-Side Watermarking:** Dynamic floating watermark overlays identifying the specific viewer's ticket number to deter screen recording.
+- **Tamper Detection & Auto-Ban:** A MutationObserver script watches the DOM. If a user deletes the watermark in dev tools, the backend instantly revokes the ticket, destroys their stream, and blacklists them.
+
 ## Installation and Setup
 
 The application is fully Dockerized for ease of deployment.

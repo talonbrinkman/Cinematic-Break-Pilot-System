@@ -1,18 +1,24 @@
 <html>
+
 <head>
     <title>Cinematic Break • {{ session.movie_title }}</title>
     <link rel="icon" href="data:,">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
     <link rel="stylesheet" href="/static/main.css">
 </head>
+
 <body class="player-body">
     <video id="mediaPlayer" class="player-video" playsinline crossorigin="anonymous">
         Your browser does not support HTML video.
     </video>
-    
+
     <div id="loadingSpinner" class="loading-spinner">
         <i data-lucide="loader-circle"></i>
     </div>
+
+    {% if ticket_number %}
+    <div id="watermark" class="watermark-overlay">{{ ticket_number }}</div>
+    {% endif %}
 
     <div id="playerOverlay" class="player-overlay pointer-events-none">
         <div class="pointer-events-auto player-header">
@@ -22,33 +28,36 @@
                 <div class="player-subtitle">Theater {{ session.theater_number }}</div>
                 {% endif %}
             </div>
-            <a href="#" onclick="window.close(); window.location.href='/'; return false;" class="player-close-btn" title="Close Player">
+            <a href="#" onclick="window.close(); window.location.href='/'; return false;" class="player-close-btn"
+                title="Close Player">
                 <i data-lucide="x"></i>
             </a>
         </div>
-        
+
         <div class="player-controls pointer-events-auto">
 
-            
+
             <div class="controls-row">
                 <div class="controls-left">
                     <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
                 </div>
-                
+
                 <div class="controls-center">
                     <button class="control-btn play-btn-large" id="playPauseBtn">
                         <i data-lucide="pause" id="playIcon"></i>
                     </button>
                 </div>
-                
+
                 <div class="controls-right">
                     <div class="volume-container flex align-center" style="gap: 5px;">
                         <button class="control-btn" id="muteBtn" onclick="toggleMute()">
                             <i data-lucide="volume-2" id="volumeIcon"></i>
                         </button>
-                        <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.05" value="1">
+                        <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.05"
+                            value="1">
                     </div>
-                    <button class="control-btn" id="aspectRatioBtn" onclick="toggleAspectRatio()" title="Aspect Ratio: Fit">
+                    <button class="control-btn" id="aspectRatioBtn" onclick="toggleAspectRatio()"
+                        title="Aspect Ratio: Fit">
                         <i data-lucide="rectangle-horizontal"></i>
                     </button>
                     <button class="control-btn" id="fullscreenBtn">
@@ -63,7 +72,7 @@
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script>
         lucide.createIcons();
-        
+
         const video = document.getElementById('mediaPlayer');
         const loadingSpinner = document.getElementById('loadingSpinner');
         const playBtn = document.getElementById('playPauseBtn');
@@ -71,12 +80,12 @@
         const fullscreenBtn = document.getElementById('fullscreenBtn');
         const volumeSlider = document.getElementById('volumeSlider');
         const muteBtn = document.getElementById('muteBtn');
-        
+
         let serverElapsed = parseInt("{{ session.elapsed_seconds }}", 10) || 0;
         let lastSyncLocalTime = Date.now();
         const duration = parseInt("{{ session.duration_seconds }}", 10) || 7200;
         let isAdminPaused = {{ 'true' if session.is_paused else 'false' }};
-        
+
         let hasInitiallySeeked = false;
 
         function getLiveTime() {
@@ -92,7 +101,7 @@
         }
 
         const useHls = {{ 'true' if use_hls else 'false' }};
-        const hlsUrl = "/static/hls/{{ session.id }}/index.m3u8";
+        const hlsUrl = `/static/hls/{{ session.id }}/index.m3u8?t=${Date.now()}`;
         const streamUrl = "/stream/{{ session.join_code }}";
 
         if (useHls) {
@@ -104,9 +113,9 @@
                         manifestLoadingRetryDelay: 1000,
                         manifestLoadingTimeOut: 10000
                     });
-                    
+
                     let recoverDecodingErrorDate = null;
-                    hls.on(Hls.Events.ERROR, function(event, data) {
+                    hls.on(Hls.Events.ERROR, function (event, data) {
                         if (data.fatal) {
                             switch (data.type) {
                                 case Hls.ErrorTypes.NETWORK_ERROR:
@@ -133,7 +142,7 @@
 
                     hls.loadSource(hlsUrl);
                     hls.attachMedia(video);
-                    hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    hls.on(Hls.Events.MANIFEST_PARSED, function () {
                         if (!hasInitiallySeeked) {
                             hasInitiallySeeked = true;
                             video.play().catch(e => console.log("Auto-play prevented", e));
@@ -194,7 +203,7 @@
                 video.pause();
             }
         }
-        
+
         playBtn.addEventListener('click', togglePlay);
         video.addEventListener('click', togglePlay);
 
@@ -218,23 +227,23 @@
 
         let lastSyncTime = 0;
         let seekFailed = false;
-        
+
         // Live syncing check
         video.addEventListener('timeupdate', () => {
             if (seekFailed) return;
-            
+
             const liveTime = getLiveTime();
             let actualDur = duration;
-            
+
             if (liveTime >= actualDur - 1) return;
-            
+
             // Force sync if we deviate by more than 5 seconds from server live time
             if (!video.paused && !video.seeking && Math.abs(video.currentTime - liveTime) > 5) {
                 if (Date.now() - lastSyncTime > 10000) {
                     const targetTime = liveTime;
                     video.currentTime = targetTime;
                     lastSyncTime = Date.now();
-                    
+
                     setTimeout(() => {
                         if (!video.seeking && Math.abs(video.currentTime - targetTime) > 5) {
                             console.warn("Seek failed. Disabling live sync to prevent loop.");
@@ -243,7 +252,7 @@
                     }, 3000);
                 }
             }
-            
+
             // Always show LIVE
             timeDisplay.innerHTML = `${formatTime(video.currentTime)} / ${formatTime(actualDur)} <span style="color: #e50914; margin-left: 10px; font-weight: bold;">• LIVE</span>`;
         });
@@ -303,20 +312,20 @@
         document.addEventListener('mousemove', showOverlay);
         video.addEventListener('pause', showOverlay);
         showOverlay();
-        
+
         const aspectModes = ['contain', 'cover', 'fill'];
         const aspectNames = ['Fit', 'Crop', 'Stretch'];
         let currentAspect = 0;
-        
+
         function toggleAspectRatio() {
             currentAspect = (currentAspect + 1) % aspectModes.length;
             video.style.objectFit = aspectModes[currentAspect];
             const btn = document.getElementById('aspectRatioBtn');
             btn.title = 'Aspect Ratio: ' + aspectNames[currentAspect];
-            
+
             // Show overlay notification
             const notification = document.createElement('div');
-            notification.style.cssText = 'position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 4px; font-weight: bold; z-index: 2000; transition: opacity 0.5s; pointer-events: none;';
+            notification.className = 'aspect-notification';
             notification.innerText = 'Aspect Ratio: ' + aspectNames[currentAspect];
             document.getElementById('playerOverlay').appendChild(notification);
             setTimeout(() => {
@@ -324,23 +333,23 @@
                 setTimeout(() => notification.remove(), 500);
             }, 1500);
         }
-        
+
         // Prevent default spacebar scrolling and use for play/pause
-        window.addEventListener('keydown', function(e) {
-            if(e.keyCode == 32 && e.target == document.body) {
+        window.addEventListener('keydown', function (e) {
+            if (e.keyCode == 32 && e.target == document.body) {
                 e.preventDefault();
                 togglePlay();
             }
         });
-        
+
         // Admin pause overlay
         const adminPauseOverlay = document.createElement('div');
-        adminPauseOverlay.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); color: white; display: flex; align-items: center; justify-content: center; font-size: 2em; z-index: 1000; font-weight: bold; pointer-events: none;';
+        adminPauseOverlay.className = 'admin-pause-overlay';
         adminPauseOverlay.innerHTML = '<i data-lucide="pause-circle" style="width: 48px; height: 48px; margin-right: 15px;"></i> Session Paused by Admin';
         adminPauseOverlay.style.display = 'none';
         document.getElementById('playerOverlay').appendChild(adminPauseOverlay);
         lucide.createIcons();
-        
+
         function updateAdminPauseState(paused) {
             isAdminPaused = paused;
             if (paused) {
@@ -357,36 +366,128 @@
                 video.play().catch(e => console.log("Auto-play prevented", e));
             }
         }
-        
+
         if (isAdminPaused) {
             updateAdminPauseState(true);
         }
 
-        // Poll server for state
+        let latencyHistory = [];
+        const MAX_HISTORY = 5;
+
         setInterval(async () => {
             try {
-                const res = await fetch(`/sessions/{{ session.id }}/state`);
+                const requestStart = Date.now();
+                const res = await fetch(`/sessions/{{ session.id }}/state`, { credentials: 'same-origin' });
+
                 if (res.ok) {
                     const data = await res.json();
+                    const requestEnd = Date.now();
                     const wasPaused = isAdminPaused;
-                    serverElapsed = data.elapsed_seconds;
-                    lastSyncLocalTime = Date.now();
-                    
+
+                    const rtt = requestEnd - requestStart;
+                    const oneWayLatency = rtt / 2;
+
+                    latencyHistory.push(oneWayLatency);
+                    if (latencyHistory.length > MAX_HISTORY) latencyHistory.shift();
+                    const avgLatency = latencyHistory.reduce((a, b) => a + b, 0) / latencyHistory.length;
+
+                    console.log(`[Sync] RTT: ${rtt}ms | One-Way Latency: ${oneWayLatency}ms | Smoothed Avg Latency: ${Math.round(avgLatency)}ms`);
+
+                    serverElapsed = data.elapsed_seconds + (avgLatency / 1000);
+                    lastSyncLocalTime = requestEnd;
+
                     if (data.is_paused !== wasPaused) {
                         updateAdminPauseState(data.is_paused);
                     } else if (!data.is_paused) {
-                        // just a normal time sync, handle drifted sync
                         const live = getLiveTime();
                         if (!video.paused && !video.seeking && Math.abs(video.currentTime - live) > 5) {
                             video.currentTime = live;
                         }
                     }
+                } else if (res.status === 403) {
+                    const data = await res.json();
+                    document.body.innerHTML = `<div class="session-ended-overlay"><i data-lucide="shield-alert" class="icon-large"></i><h2 style="color: #e50914;">Access Revoked</h2><p>${data.detail || 'Your access has been terminated.'}</p></div>`;
+                    lucide.createIcons();
+                    if (typeof hls !== 'undefined') hls.destroy();
+                    video.src = '';
+                } else if (res.status === 404) {
+                    document.body.innerHTML = '<div class="session-ended-overlay"><i data-lucide="video-off" class="icon-large"></i><h2>Session Ended</h2><p>This session has been terminated by the administrator.</p></div>';
+                    lucide.createIcons();
+                    if (typeof hls !== 'undefined') hls.destroy();
+                    video.src = '';
                 }
             } catch (e) {
                 console.error("Failed to poll session state", e);
             }
         }, 5000);
 
+        // Bouncing Watermark & Anti-Tamper
+        const ticketNum = "{{ ticket_number }}";
+        let watermark = document.getElementById('watermark');
+
+        function createWatermark() {
+            if (document.getElementById('watermark')) return document.getElementById('watermark');
+            const el = document.createElement('div');
+            el.id = 'watermark';
+            el.className = 'watermark-overlay';
+            el.innerText = ticketNum;
+            document.body.appendChild(el);
+            return el;
+        }
+
+        if (ticketNum) {
+            function moveWatermark() {
+                if (!watermark) watermark = createWatermark();
+                const maxX = window.innerWidth - watermark.clientWidth - 20;
+                const maxY = window.innerHeight - watermark.clientHeight - 20;
+                
+                const newX = Math.max(10, Math.floor(Math.random() * maxX));
+                const newY = Math.max(10, Math.floor(Math.random() * maxY));
+                
+                watermark.style.left = `${newX}px`;
+                watermark.style.top = `${newY}px`;
+                watermark.style.display = 'block';
+                watermark.style.visibility = 'visible';
+                watermark.style.opacity = '1';
+            }
+            
+            // Initial position and start interval
+            moveWatermark();
+            setInterval(moveWatermark, 3000);
+            window.addEventListener('resize', moveWatermark);
+
+            // Anti-Tamper Observer
+            const observer = new MutationObserver(() => {
+                if (!document.getElementById('watermark')) {
+                    console.warn("Watermark tampering detected. Re-engaging.");
+                    watermark = createWatermark();
+                    fetch(`/sessions/{{ session.id }}/ban`, { method: 'POST' });
+                }
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+            
+            // Aggressive interval check in case observer is bypassed
+            setInterval(() => {
+                let tampered = false;
+                if (!document.getElementById('watermark')) {
+                    watermark = createWatermark();
+                    tampered = true;
+                } else {
+                    const style = window.getComputedStyle(watermark);
+                    if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) < 0.1) {
+                        watermark.style.display = 'block';
+                        watermark.style.visibility = 'visible';
+                        watermark.style.opacity = '1';
+                        tampered = true;
+                    }
+                }
+                if (tampered) {
+                    fetch(`/sessions/{{ session.id }}/ban`, { method: 'POST' });
+                }
+            }, 1000);
+        }
+
     </script>
 </body>
+
 </html>

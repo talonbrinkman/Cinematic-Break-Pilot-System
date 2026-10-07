@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="join-container">
+    <div class="section-title text-center">Join Session: {{ session.movie_title }}</div>
+
+    <div class="join-box">
+        <form method="POST" action="/join/{{ session.join_code }}">
+            {% if error %}
+            <div class="error-msg">
+                {{ error }}
+            </div>
+            {% endif %}
+            <div class="mb-20">
+                <label for="ticket_number" class="d-block mb-8 font-500">Enter Ticket Number</label>
+                <input type="text" id="ticket_number" name="ticket_number" required class="join-input" placeholder="XXXXXX" maxlength="6">
+            </div>
+            <button type="submit" class="btn btn-primary join-btn">Join Session</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

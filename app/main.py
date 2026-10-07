@@ -20,6 +20,15 @@ from .database import get_db
 
 app = FastAPI(title="Cinematic Break")
 
+@app.middleware("http")
+async def add_cache_control_header(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.endswith(".m3u8") or request.url.path.endswith(".ts"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 ffmpeg_processes = {}
 
 def get_base_url(request: Request, db: sqlite3.Connection):
@@ -90,6 +99,7 @@ async def home(request: Request, db: sqlite3.Connection = Depends(get_db)):
     expired_sessions = cursor.fetchall()
     for row in expired_sessions:
         cleanup_session_hls(row['id'])
+        cursor.execute("DELETE FROM tickets WHERE session_id = ?", (row['id'],))
 
     cursor.execute("""
         DELETE FROM sessions 
@@ -183,6 +193,11 @@ async def create_session(
         (join_code, session_name, theater_number, movie_title, duration)
     )
     session_id = cursor.lastrowid
+    
+    for _ in range(100):
+        ticket_number = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        cursor.execute("INSERT INTO tickets (session_id, ticket_number) VALUES (?, ?)", (session_id, ticket_number))
+        
     db.commit()
     
     if media_file_path:
@@ -192,6 +207,17 @@ async def create_session(
             hls_dir = os.path.join("app", "static", "hls", str(session_id))
             os.makedirs(hls_dir, exist_ok=True)
             
+            # Generate AES-128 key and key_info
+            key_path = os.path.join(hls_dir, "key.bin")
+            key_info_path = os.path.join(hls_dir, "key_info.txt")
+            
+            with open(key_path, "wb") as f:
+                f.write(os.urandom(16))
+            
+            with open(key_info_path, "w") as f:
+                f.write(f"/sessions/{session_id}/key.bin\n")
+                f.write(f"{key_path}\n")
+            
             log_file = open(os.path.join(hls_dir, "ffmpeg.log"), "w")
             proc = subprocess.Popen([
                 "ffmpeg", "-y", "-fflags", "+genpts", "-i", media_file_path,
@@ -200,6 +226,7 @@ async def create_session(
                 "-avoid_negative_ts", "make_non_negative",
                 "-start_number", "0", "-hls_time", "4", "-hls_list_size", "0",
                 "-hls_flags", "temp_file",
+                "-hls_key_info_file", key_info_path,
                 "-f", "hls", os.path.join(hls_dir, "index.m3u8")
             ], stdout=subprocess.DEVNULL, stderr=log_file)
             ffmpeg_processes[session_id] = proc
@@ -210,14 +237,41 @@ async def create_session(
 async def stop_session(session_id: int, db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+    cursor.execute("DELETE FROM tickets WHERE session_id = ?", (session_id,))
     db.commit()
     cleanup_session_hls(session_id)
+    return RedirectResponse(url="/", status_code=303)
+
+@app.post("/sessions/{session_id}/pause")
+async def pause_session(session_id: int, db: sqlite3.Connection = Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("""
+        UPDATE sessions 
+        SET accumulated_seconds = accumulated_seconds + (strftime('%s', 'now') - strftime('%s', last_updated_time)),
+            is_paused = 1,
+            last_updated_time = CURRENT_TIMESTAMP
+        WHERE id = ? AND is_paused = 0
+    """, (session_id,))
+    db.commit()
+    return RedirectResponse(url="/", status_code=303)
+
+@app.post("/sessions/{session_id}/resume")
+async def resume_session(session_id: int, db: sqlite3.Connection = Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("""
+        UPDATE sessions 
+        SET is_paused = 0,
+            last_updated_time = CURRENT_TIMESTAMP
+        WHERE id = ? AND is_paused = 1
+    """, (session_id,))
+    db.commit()
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/sessions/stop_all")
 async def stop_all_sessions(db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("DELETE FROM sessions")
+    cursor.execute("DELETE FROM tickets")
     db.commit()
     for sid in list(ffmpeg_processes.keys()):
         cleanup_session_hls(sid)
@@ -250,10 +304,10 @@ async def resume_all_sessions(db: sqlite3.Connection = Depends(get_db)):
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/sessions/{session_id}/state")
-async def get_session_state(session_id: int, db: sqlite3.Connection = Depends(get_db)):
+async def get_session_state(request: Request, session_id: int, db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("""
-        SELECT is_paused, 
+        SELECT is_paused, join_code,
         CASE 
             WHEN is_paused = 1 THEN accumulated_seconds 
             ELSE accumulated_seconds + (strftime('%s', 'now') - strftime('%s', last_updated_time))
@@ -263,7 +317,52 @@ async def get_session_state(session_id: int, db: sqlite3.Connection = Depends(ge
     session = cursor.fetchone()
     if not session:
         return Response(status_code=404)
+        
+    join_code = session['join_code']
+    ticket_number = request.cookies.get(f"ticket_{join_code}")
+    if ticket_number:
+        cursor.execute("SELECT is_banned FROM tickets WHERE session_id = ? AND ticket_number = ?", (session_id, ticket_number))
+        ticket = cursor.fetchone()
+        if not ticket:
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"detail": "Your ticket has been ended by the administrator."}, status_code=403)
+        if ticket['is_banned']:
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"detail": "Ticket banned for watermark tampering."}, status_code=403)
+            
+        cursor.execute("UPDATE tickets SET last_active = CURRENT_TIMESTAMP WHERE session_id = ? AND ticket_number = ?", (session_id, ticket_number))
+        db.commit()
+
     return {"is_paused": bool(session["is_paused"]), "elapsed_seconds": session["elapsed_seconds"]}
+
+@app.post("/admin/tickets/{ticket_id}/ban")
+async def admin_ban_ticket(ticket_id: int, db: sqlite3.Connection = Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("UPDATE tickets SET is_banned = 1 WHERE id = ?", (ticket_id,))
+    db.commit()
+    return Response(status_code=200)
+
+@app.post("/admin/tickets/{ticket_id}/end")
+async def admin_end_ticket(ticket_id: int, db: sqlite3.Connection = Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM tickets WHERE id = ?", (ticket_id,))
+    db.commit()
+    return Response(status_code=200)
+
+@app.post("/sessions/{session_id}/ban")
+async def ban_ticket(session_id: int, request: Request, db: sqlite3.Connection = Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT join_code FROM sessions WHERE id = ?", (session_id,))
+    session = cursor.fetchone()
+    if not session:
+        return Response(status_code=404)
+        
+    join_code = session['join_code']
+    ticket_number = request.cookies.get(f"ticket_{join_code}")
+    if ticket_number:
+        cursor.execute("UPDATE tickets SET is_banned = 1 WHERE session_id = ? AND ticket_number = ?", (session_id, ticket_number))
+        db.commit()
+    return Response(status_code=200)
 
 @app.get("/sessions/{session_id}/qr")
 async def get_session_qr(request: Request, session_id: int, db: sqlite3.Connection = Depends(get_db)):
@@ -290,8 +389,72 @@ async def view_theater(request: Request, theater_number: str, db: sqlite3.Connec
     session = cursor.fetchone()
     return templates.TemplateResponse("theater.html", {"request": request, "session": session, "theater_number": theater_number})
 
+@app.get("/sessions/{session_id}/tickets")
+async def view_tickets(session_id: int, db: sqlite3.Connection = Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM sessions WHERE id = ?", (session_id,))
+    session = cursor.fetchone()
+    if not session:
+        return Response(status_code=404)
+        
+    cursor.execute("""
+        SELECT id, ticket_number, is_used, is_banned,
+        CASE WHEN is_used = 1 AND strftime('%s', 'now') - strftime('%s', last_active) < 10 THEN 1 ELSE 0 END as currently_active
+        FROM tickets 
+        WHERE session_id = ?
+    """, (session_id,))
+    tickets = [{"id": row['id'], "ticket_number": row['ticket_number'], "is_used": row['is_used'], "is_banned": row['is_banned'], "currently_active": row['currently_active']} for row in cursor.fetchall()]
+    
+    return {"tickets": tickets}
+
+@app.get("/join/{join_code}")
+async def join_session_get(request: Request, join_code: str, db: sqlite3.Connection = Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM sessions WHERE join_code = ?", (join_code,))
+    session = cursor.fetchone()
+    if not session:
+        return HTMLResponse("<h1>Session not found or has ended.</h1>", status_code=404)
+        
+    return templates.TemplateResponse("join.html", {"request": request, "session": session, "error": None})
+
+@app.post("/join/{join_code}")
+async def join_session_post(request: Request, join_code: str, ticket_number: str = Form(...), db: sqlite3.Connection = Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM sessions WHERE join_code = ?", (join_code,))
+    session = cursor.fetchone()
+    if not session:
+        return HTMLResponse("<h1>Session not found or has ended.</h1>", status_code=404)
+        
+    session_id = session['id']
+    ticket_number = ticket_number.strip().upper()
+    
+    cursor.execute("""
+        SELECT id, is_used, 
+        CASE WHEN is_used = 1 AND strftime('%s', 'now') - strftime('%s', last_active) < 10 THEN 1 ELSE 0 END as currently_active
+        FROM tickets 
+        WHERE session_id = ? AND ticket_number = ?
+    """, (session_id, ticket_number))
+    ticket = cursor.fetchone()
+    
+    if not ticket:
+        return templates.TemplateResponse("join.html", {"request": request, "session": session, "error": "Invalid ticket number."})
+        
+    if ticket['currently_active'] == 1:
+        return templates.TemplateResponse("join.html", {"request": request, "session": session, "error": "Ticket is currently in use by another device."})
+        
+    cursor.execute("UPDATE tickets SET is_used = 1, last_active = CURRENT_TIMESTAMP WHERE id = ?", (ticket['id'],))
+    db.commit()
+    
+    response = RedirectResponse(url=f"/player/{join_code}", status_code=303)
+    response.set_cookie(key=f"ticket_{join_code}", value=ticket_number, httponly=True)
+    return response
+
 @app.get("/player/{join_code}")
 async def view_player(request: Request, join_code: str, db: sqlite3.Connection = Depends(get_db)):
+    ticket_number = request.cookies.get(f"ticket_{join_code}")
+    if not ticket_number:
+        return RedirectResponse(url=f"/join/{join_code}")
+
     cursor = db.cursor()
     cursor.execute("""
         SELECT *, 
@@ -304,11 +467,52 @@ async def view_player(request: Request, join_code: str, db: sqlite3.Connection =
     session = cursor.fetchone()
     if not session:
         return HTMLResponse("<h1>Session not found or has ended.</h1>", status_code=404)
+        
+    cursor.execute("SELECT is_banned FROM tickets WHERE session_id = ? AND ticket_number = ?", (session['id'], ticket_number))
+    ticket = cursor.fetchone()
+    if not ticket:
+        return RedirectResponse(url=f"/join/{join_code}")
+        
+    if ticket['is_banned']:
+        html_content = """
+        <html><head><title>Access Revoked</title><link rel="stylesheet" href="/static/main.css"><script src="https://unpkg.com/lucide@latest"></script></head><body style="background:#000;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;font-family:sans-serif;">
+        <div style="text-align:center;"><i data-lucide="shield-alert" style="width:80px;height:80px;color:#e50914;"></i><h2 style="color:#e50914;font-size:2em;margin-top:20px;">Access Revoked</h2><p style="font-size:1.2em;color:#aaa;">Ticket banned for watermark tampering.</p></div>
+        <script>lucide.createIcons();</script></body></html>
+        """
+        return HTMLResponse(content=html_content, status_code=403)
     
     hls_dir = os.path.join("app", "static", "hls", str(session['id']))
     use_hls = os.path.exists(hls_dir)
     
-    return templates.TemplateResponse("player.html", {"request": request, "session": session, "use_hls": use_hls})
+    return templates.TemplateResponse("player.html", {"request": request, "session": session, "use_hls": use_hls, "ticket_number": ticket_number})
+
+@app.get("/sessions/{session_id}/key.bin")
+async def get_hls_key(request: Request, session_id: int, db: sqlite3.Connection = Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT join_code FROM sessions WHERE id = ?", (session_id,))
+    session = cursor.fetchone()
+    if not session:
+        return Response(status_code=404)
+        
+    join_code = session['join_code']
+    ticket_number = request.cookies.get(f"ticket_{join_code}")
+    if not ticket_number:
+        return Response(status_code=403)
+        
+    cursor.execute("SELECT is_banned FROM tickets WHERE session_id = ? AND ticket_number = ?", (session_id, ticket_number))
+    ticket = cursor.fetchone()
+    if not ticket or ticket['is_banned']:
+        return Response(status_code=403)
+        
+    key_path = os.path.join("app", "static", "hls", str(session_id), "key.bin")
+    if not os.path.exists(key_path):
+        return Response(status_code=404)
+        
+    return FileResponse(key_path, media_type="application/octet-stream", headers={
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    })
 
 @app.get("/stream/{join_code}")
 async def stream_media(request: Request, join_code: str, db: sqlite3.Connection = Depends(get_db)):

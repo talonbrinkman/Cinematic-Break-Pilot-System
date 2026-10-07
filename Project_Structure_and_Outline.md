@@ -3,11 +3,16 @@
 ## 1. Project Scope & Goals
 **Cinematic Break** is a secure, low-latency media streaming service designed for movie theaters. 
 
-**Goals:**
+**Goals & Key Features:**
 - Provide a system running as a Dockerized server on a mini-PC within a theater's local network.
 - Allow patrons to seamlessly sync the ongoing movie to their personal devices (smartphones, tablets) by scanning a QR code, so they don't miss a beat if they have to leave the auditorium.
-- Offer theater staff a simple Admin Dashboard to start, stop, and pause movie sessions.
+- Offer theater staff a simple Admin Dashboard to start, stop, pause, and moderate movie sessions.
 - Support both native MP4 streaming and on-the-fly HTTP Live Streaming (HLS) generation for broader compatibility.
+- **Ultra Low-Latency Sync:** Sub-10ms delay using client-side Network Round-Trip Time (RTT) latency estimation and timestamp compensation.
+- **Ticket Validation System:** Built-in 6-digit ticket generator and validator (designed to be easily swapped out for a 3rd-party POS database later).
+- **Stream Security (DRM):** AES-128 on-the-fly HLS stream encryption preventing raw video scraping.
+- **Client-Side Watermarking:** Dynamic floating watermark overlays identifying the specific viewer's ticket number to deter screen recording.
+- **Tamper Detection & Auto-Ban:** A MutationObserver script watches the DOM. If a user deletes the watermark in dev tools, the backend instantly revokes the ticket, destroys their stream, and blacklists them.
 
 ---
 
@@ -51,6 +56,14 @@ The application uses a lightweight SQLite database (`cinematicbreak.db`) to mana
 **Table: `settings`** (Configuration options)
 - `key` (TEXT): e.g., `external_dns`
 - `value` (TEXT): Setting value, used for custom base URLs for QR codes.
+
+**Table: `tickets`** (Session Authorization)
+- `id` (INTEGER): Unique identifier.
+- `session_id` (INTEGER): Foreign key tying the ticket to a specific active movie session.
+- `ticket_number` (TEXT): A generated 6-digit alphanumeric validation code.
+- `is_used` (INTEGER): Flag tracking if the ticket is currently in-use by a device.
+- `is_banned` (INTEGER): Flag to immediately sever connection and revoke access for hostile actions (like tampering).
+- `last_active` (TIMESTAMP): Rolling timestamp to handle timeouts and inactive users.
 
 ---
 
