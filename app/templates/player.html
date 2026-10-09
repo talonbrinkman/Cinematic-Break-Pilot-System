@@ -8,6 +8,7 @@
 </head>
 
 <body class="player-body">
+    <div class="player-container" id="playerContainer">
     <video id="mediaPlayer" class="player-video" playsinline crossorigin="anonymous">
         Your browser does not support HTML video.
     </video>
@@ -17,7 +18,11 @@
     </div>
 
     {% if ticket_number %}
-    <div id="watermark" class="watermark-overlay">{{ ticket_number }}</div>
+    <div id="watermark" class="watermark-deterrent">
+        <span class="watermark-label">LIVE STREAM MONITORED</span>
+        <span class="watermark-divider">|</span>
+        <span class="watermark-ticket-num">TICKET #{{ ticket_number }}</span>
+    </div>
     {% endif %}
 
     <div id="playerOverlay" class="player-overlay pointer-events-none">
@@ -67,6 +72,7 @@
             </div>
         </div>
     </div>
+    </div>
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -84,7 +90,7 @@
         let serverElapsed = parseInt("{{ session.elapsed_seconds }}", 10) || 0;
         let lastSyncLocalTime = Date.now();
         const duration = parseInt("{{ session.duration_seconds }}", 10) || 7200;
-        let isAdminPaused = {{ 'true' if session.is_paused else 'false' }};
+        let isAdminPaused = "{{ 'true' if session.is_paused else 'false' }}";
 
         let hasInitiallySeeked = false;
 
@@ -100,7 +106,7 @@
             return Math.max(0, Math.min(actualDur, serverElapsed + (now - lastSyncLocalTime) / 1000));
         }
 
-        const useHls = {{ 'true' if use_hls else 'false' }};
+        const useHls = "{{ 'true' if use_hls else 'false' }}";
         const hlsUrl = `/static/hls/{{ session.id }}/index.m3u8?t=${Date.now()}`;
         const streamUrl = "/stream/{{ session.join_code }}";
 
@@ -421,71 +427,48 @@
             }
         }, 5000);
 
-        // Bouncing Watermark & Anti-Tamper
-        const ticketNum = "{{ ticket_number }}";
-        let watermark = document.getElementById('watermark');
+       // Bouncing Watermark & Anti-Tamper
+    const ticketNum = "{{ ticket_number }}";
+    const watermarkEl = document.getElementById('watermark');
+    const container = document.getElementById('playerContainer');
 
-        function createWatermark() {
-            if (document.getElementById('watermark')) return document.getElementById('watermark');
-            const el = document.createElement('div');
-            el.id = 'watermark';
-            el.className = 'watermark-overlay';
-            el.innerText = ticketNum;
-            document.body.appendChild(el);
-            return el;
+    if (ticketNum && watermarkEl && container) {
+        watermarkEl.style.top = '0';
+        watermarkEl.style.left = '0';
+
+        let posX = 20;
+        let posY = 20;
+        let speedX = 1.0;
+        let speedY = 0.7;
+
+        function patrolWatermark() {
+            const boundsW = container.clientWidth;
+            const boundsH = container.clientHeight;
+            const wmW = watermarkEl.offsetWidth;
+            const wmH = watermarkEl.offsetHeight;
+
+            if (posX + wmW >= boundsW) speedX = -Math.abs(speedX);
+            else if (posX <= 0) speedX = Math.abs(speedX);
+
+            if (posY + wmH >= boundsH) speedY = -Math.abs(speedY);
+            else if (posY <= 0) speedY = Math.abs(speedY);
+
+            posX += speedX;
+            posY += speedY;
+
+            watermarkEl.style.transform = `translate3d(${posX}px, ${posY}px, 0)`;
+            requestAnimationFrame(patrolWatermark);
         }
+        requestAnimationFrame(patrolWatermark);
 
-        if (ticketNum) {
-            function moveWatermark() {
-                if (!watermark) watermark = createWatermark();
-                const maxX = window.innerWidth - watermark.clientWidth - 20;
-                const maxY = window.innerHeight - watermark.clientHeight - 20;
-                
-                const newX = Math.max(10, Math.floor(Math.random() * maxX));
-                const newY = Math.max(10, Math.floor(Math.random() * maxY));
-                
-                watermark.style.left = `${newX}px`;
-                watermark.style.top = `${newY}px`;
-                watermark.style.display = 'block';
-                watermark.style.visibility = 'visible';
-                watermark.style.opacity = '1';
+        const observer = new MutationObserver(() => {
+            if (!document.getElementById('watermark')) {
+                fetch('/sessions/{{ session.id }}/ban', { method: 'POST' });
+                if (typeof terminatePlayback === 'function') terminatePlayback();
             }
-            
-            // Initial position and start interval
-            moveWatermark();
-            setInterval(moveWatermark, 3000);
-            window.addEventListener('resize', moveWatermark);
-
-            // Anti-Tamper Observer
-            const observer = new MutationObserver(() => {
-                if (!document.getElementById('watermark')) {
-                    console.warn("Watermark tampering detected. Re-engaging.");
-                    watermark = createWatermark();
-                    fetch(`/sessions/{{ session.id }}/ban`, { method: 'POST' });
-                }
-            });
-            observer.observe(document.body, { childList: true, subtree: true });
-            
-            // Aggressive interval check in case observer is bypassed
-            setInterval(() => {
-                let tampered = false;
-                if (!document.getElementById('watermark')) {
-                    watermark = createWatermark();
-                    tampered = true;
-                } else {
-                    const style = window.getComputedStyle(watermark);
-                    if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) < 0.1) {
-                        watermark.style.display = 'block';
-                        watermark.style.visibility = 'visible';
-                        watermark.style.opacity = '1';
-                        tampered = true;
-                    }
-                }
-                if (tampered) {
-                    fetch(`/sessions/{{ session.id }}/ban`, { method: 'POST' });
-                }
-            }, 1000);
-        }
+        });
+        observer.observe(container, { childList: true, subtree: true });
+    }
 
     </script>
 </body>
