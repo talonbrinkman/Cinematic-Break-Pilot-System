@@ -1,0 +1,8 @@
+@"
+.git/
+media/
+cinematicbreak.db
+venv/
+env/
+__pycache__/
+"@ > .dockerignore
