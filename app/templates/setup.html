@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Admin - Cinematic Break</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/static/main.css">
+    <script src="/static/password-strength.js"></script>
+</head>
+<body class="center-screen">
+    <div class="join-box">
+        <h1 class="brand-title text-center mb-8">Welcome to Cinematic Break</h1>
+        <p class="text-center mb-20">Create your admin account to get started.</p>
+
+        {% if error %}
+        <div class="error-msg" id="errorNotice">{{ error }}</div>
+        {% else %}
+        <div class="error-msg" id="errorNotice" style="display: none;"></div>
+        {% endif %}
+
+        <form action="/setup" method="post" id="setupForm" onsubmit="return validatePasswords()">
+            <div class="form-group">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" name="username" id="username" required autocomplete="off" autofocus>
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">Password</label>
+                <div class="password-field">
+                    <input type="password" name="password" id="password" required autocomplete="new-password">
+                    <div class="password-toggle" onclick="toggleVisibility('password', this)" title="Toggle visibility" aria-label="Toggle password visibility">
+                        <i data-lucide="eye"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group mb-20">
+                <label for="confirm_password" class="form-label">Confirm Password</label>
+                <div class="password-field">
+                    <input type="password" name="confirm_password" id="confirm_password" required autocomplete="new-password">
+                    <div class="password-toggle" onclick="toggleVisibility('confirm_password', this)" title="Toggle visibility" aria-label="Toggle password visibility">
+                        <i data-lucide="eye"></i>
+                    </div>
+                </div>
+                <div class="password-strength-container" data-for="password">
+                    <div class="password-strength-bar">
+                        <div class="password-strength-fill"></div>
+                    </div>
+                    <div class="password-strength-text"></div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Create Admin Account</button>
+        </form>
+    </div>
+
+    <script src="/static/lucide.min.js"></script>
+    <script>
+        function toggleVisibility(inputId, trigger) {
+            const input = document.getElementById(inputId);
+            const btn = typeof trigger === 'string' ? document.getElementById(trigger) : trigger;
+            if (!input || !btn) return;
+            const toggleBtn = btn.classList.contains('password-toggle') ? btn : btn.closest('.password-toggle') || btn;
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            const iconName = isPassword ? 'eye-off' : 'eye';
+            toggleBtn.innerHTML = `<i data-lucide="${iconName}"></i>`;
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+        }
+
+        function validatePasswords() {
+            const p1 = document.getElementById('password').value;
+            const p2 = document.getElementById('confirm_password').value;
+            const notice = document.getElementById('errorNotice');
+            if (p1 !== p2) {
+                notice.textContent = 'Passwords do not match. Please try again.';
+                notice.style.display = 'block';
+                return false;
+            }
+            return true;
+        }
+
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>

@@ -4,7 +4,7 @@
 <div class="section-title">Active Sessions</div>
 
 {% if sessions %}
-<div class="flex gap-15 mb-20">
+<div class="sessions-toolbar">
     <form method="POST" action="/sessions/pause_all" class="m-0">
         <button type="submit" class="btn btn-secondary">Pause All Sessions</button>
     </form>
@@ -13,39 +13,59 @@
     </form>
     <form method="POST" action="/sessions/stop_all" class="m-0"
         onsubmit="return confirm('Are you sure you want to end all sessions?');">
-        <button type="submit" class="btn">End
-            All Sessions</button>
+        <button type="submit" class="btn">End All Sessions</button>
     </form>
 </div>
 <div class="carousel-row">
     {% for session in sessions %}
     <div class="session-card">
-        <h3><a href="/player/{{ session.join_code }}" target="_blank" style="color: white; text-decoration: none;">{{
-                session.movie_title }}</a></h3>
-        <p class="join-code-text" onclick="copyText('{{ base_url }}player/{{ session.join_code }}', this)"
-            title="Click to copy full link"><strong>Join Code:</strong> {{ session.join_code }}</p>
-        {% if session.session_name %}
-        <p><strong>Session:</strong> {{ session.session_name }}</p>
-        {% endif %}
-        {% if session.theater_number and session.theater_number != 'None' %}
-        <p><strong>Theater:</strong> {{ session.theater_number }}</p>
-        {% endif %}
-        <p><strong>Started:</strong> <span class="local-time" data-utc="{{ session.start_time }}"></span>
-        </p>
-        <p><strong>Status:</strong> {% if session.is_paused %}<span class="text-paused">Paused</span>{% else
-            %}<span class="text-playing">Playing</span>{% endif %}</p>
-        <p><strong>Runtime:</strong> <span class="runtime" data-elapsed="{{ session.elapsed_seconds }}"
-                data-paused="{{ 'true' if session.is_paused else 'false' }}">00:00:00</span></p>
-        <p><strong>Remaining:</strong> <span class="remaining" data-elapsed="{{ session.elapsed_seconds }}"
-                data-duration="{{ session.duration_seconds }}">00:00:00</span></p>
+        <div>
+            <h3 class="session-title">
+                <a href="/player/{{ session.join_code }}" target="_blank" class="session-title-link" title="{{ session.movie_title }}">
+                    {{ session.movie_title }}
+                </a>
+            </h3>
 
-        <img src="/sessions/{{ session.id }}/qr" class="qr-code" />
+            <div class="join-code-badge mb-8 mt-15" onclick="copyText('{{ base_url }}player/{{ session.join_code }}', this)" title="Click to copy join link">
+                <span><strong>Join Code:</strong> {{ session.join_code }}</span>
+                <i data-lucide="copy"></i>
+            </div>
 
-        <div class="flex flex-col gap-8 mt-15">
-            <button type="button" class="btn btn-primary btn-block-primary"
-                onclick="openTicketsModal({{ session.id }}, '{{ session.movie_title|escape }}')">View Valid
-                Tickets</button>
-            <div class="flex gap-8">
+            <div class="session-meta">
+                {% if session.session_name %}
+                <div class="session-meta-row"><span>Session</span><strong>{{ session.session_name }}</strong></div>
+                {% endif %}
+                {% if session.theater_number and session.theater_number != 'None' %}
+                <div class="session-meta-row"><span>Theater</span><strong>{{ session.theater_number }}</strong></div>
+                {% endif %}
+                <div class="session-meta-row"><span>Started</span><span class="local-time" data-utc="{{ session.start_time }}"></span></div>
+                <div class="session-meta-row">
+                    <span>Status</span>
+                    {% if session.is_paused %}
+                    <span class="text-paused">● Paused</span>
+                    {% else %}
+                    <span class="text-playing">● Playing</span>
+                    {% endif %}
+                </div>
+                <div class="session-meta-row">
+                    <span>Runtime</span>
+                    <span class="runtime" data-elapsed="{{ session.elapsed_seconds }}" data-paused="{{ 'true' if session.is_paused else 'false' }}">00:00:00</span>
+                </div>
+                <div class="session-meta-row">
+                    <span>Remaining</span>
+                    <span class="remaining" data-elapsed="{{ session.elapsed_seconds }}" data-duration="{{ session.duration_seconds }}">00:00:00</span>
+                </div>
+            </div>
+        </div>
+
+        <img src="/sessions/{{ session.id }}/qr" class="qr-code" alt="Join Code QR" />
+
+        <div class="session-card-actions">
+            <button type="button" class="btn btn-primary w-100"
+                onclick="openTicketsModal({{ session.id }}, '{{ session.movie_title|escape }}')">
+                View Valid Tickets
+            </button>
+            <div class="session-btn-row">
                 {% if session.is_paused %}
                 <form method="POST" action="/sessions/{{ session.id }}/resume" class="m-0 flex-1">
                     <button type="submit" class="btn btn-secondary w-100">Resume</button>
@@ -56,7 +76,7 @@
                 </form>
                 {% endif %}
                 <form method="POST" action="/sessions/{{ session.id }}/stop" class="m-0 flex-1">
-                    <button type="submit" class="btn btn-secondary w-100">Stop</button>
+                    <button type="submit" class="btn btn-secondary w-100">End</button>
                 </form>
             </div>
         </div>
@@ -73,12 +93,8 @@
 <div class="carousel-row">
     {% for item in media_items %}
     <div class="media-card">
-        <div class="poster-container">
+        <div class="poster-container" onclick="openModal('{{ item.title | escape }}')" title="Start Session for {{ item.title }}">
             <div class="poster-text">{{ item.title }}</div>
-            <button class="hover-play" onclick="openModal('{{ item.title | escape }}')"
-                title="Start Session for {{ item.title }}">
-                <i data-lucide="play" fill="currentColor"></i>
-            </button>
         </div>
     </div>
     {% endfor %}
@@ -92,7 +108,7 @@
     <div class="modal-box">
         <div class="modal-header">
             <h2 class="modal-title" id="ticketsModalTitle">Valid Tickets</h2>
-            <button onclick="closeTicketsModal()" class="modal-close"><i data-lucide="x"></i></button>
+            <button onclick="closeTicketsModal()" class="modal-close" aria-label="Close modal"><i data-lucide="x"></i></button>
         </div>
         <div class="modal-body">
             <div id="ticketsModalGrid" class="tickets-grid">
@@ -115,25 +131,27 @@
         try {
             const successful = document.execCommand('copy');
             if (successful) {
-                const original = el.innerText;
-                el.innerText = 'Copied!';
-                setTimeout(() => el.innerText = original, 1000);
+                const label = el.querySelector('span') || el;
+                const original = label.innerText;
+                label.innerText = 'Copied Link!';
+                setTimeout(() => label.innerText = original, 1200);
             }
         } catch (err) {
-            console.error('Fallback: Oops, unable to copy', err);
+            console.error('Fallback: unable to copy', err);
         }
         document.body.removeChild(textArea);
     }
 
     function copyText(text, el) {
+        const label = el.querySelector('span') || el;
+        const original = label.innerText;
         if (!navigator.clipboard) {
             fallbackCopyTextToClipboard(text, el);
             return;
         }
         navigator.clipboard.writeText(text).then(function () {
-            const original = el.innerText;
-            el.innerText = 'Copied!';
-            setTimeout(() => el.innerText = original, 1000);
+            label.innerText = 'Copied Link!';
+            setTimeout(() => label.innerText = original, 1200);
         }, function (err) {
             console.error('Async: Could not copy text: ', err);
             fallbackCopyTextToClipboard(text, el);
@@ -158,7 +176,7 @@
             }
         });
 
-        setInterval(() => {
+        function updateSessionTimers() {
             const now = Date.now();
             document.querySelectorAll('.session-card').forEach(card => {
                 const runtimeEl = card.querySelector('.runtime');
@@ -166,26 +184,27 @@
 
                 if (runtimeEl && remainingEl) {
                     const isPaused = runtimeEl.getAttribute('data-paused') === 'true';
-                    const initialElapsed = parseInt(runtimeEl.getAttribute('data-elapsed'), 10);
+                    let initialElapsed = parseInt(runtimeEl.getAttribute('data-elapsed'), 10);
+                    if (isNaN(initialElapsed)) initialElapsed = 0;
                     const duration = parseInt(remainingEl.getAttribute('data-duration'), 10) || 7200;
-                    if (!isNaN(initialElapsed)) {
-                        let elapsedSecs = initialElapsed;
-                        if (!isPaused) {
-                            elapsedSecs += Math.floor((now - pageLoadTime) / 1000);
-                        }
-                        const remainSecs = duration - elapsedSecs;
+                    let elapsedSecs = initialElapsed;
+                    if (!isPaused) {
+                        elapsedSecs += Math.floor((now - pageLoadTime) / 1000);
+                    }
+                    const remainSecs = duration - elapsedSecs;
 
-                        if (remainSecs <= 0 && !isPaused) {
-                            // Reload the page to clear the session once it's ended
-                            window.location.reload();
-                        } else {
-                            runtimeEl.innerText = formatSeconds(elapsedSecs);
-                            remainingEl.innerText = formatSeconds(Math.max(0, remainSecs));
-                        }
+                    if (remainSecs <= 0 && !isPaused) {
+                        window.location.reload();
+                    } else {
+                        runtimeEl.innerText = formatSeconds(elapsedSecs);
+                        remainingEl.innerText = formatSeconds(Math.max(0, remainSecs));
                     }
                 }
             });
-        }, 1000);
+        }
+
+        updateSessionTimers();
+        setInterval(updateSessionTimers, 1000);
     });
 
     let currentTicketsSessionId = null;
@@ -194,13 +213,13 @@
     function openTicketsModal(sessionId, title) {
         currentTicketsSessionId = sessionId;
         document.getElementById('ticketsModalTitle').innerText = 'Valid Tickets for ' + title;
-        document.getElementById('ticketsModal').style.display = 'flex';
+        document.getElementById('ticketsModal').classList.add('show');
         fetchTickets();
         ticketsPollInterval = setInterval(fetchTickets, 2000);
     }
 
     function closeTicketsModal() {
-        document.getElementById('ticketsModal').style.display = 'none';
+        document.getElementById('ticketsModal').classList.remove('show');
         currentTicketsSessionId = null;
         clearInterval(ticketsPollInterval);
     }
@@ -223,8 +242,7 @@
 
                     const status = document.createElement('div');
                     if (ticket.is_banned === 1) {
-                        status.className = 'ticket-status-used';
-                        status.style.color = '#e50914';
+                        status.className = 'ticket-status-banned';
                         status.innerText = 'Banned';
                     } else if (ticket.currently_active === 1) {
                         status.className = 'ticket-status-active';
@@ -239,26 +257,18 @@
                     card.appendChild(status);
                     
                     const actions = document.createElement('div');
-                    actions.style.display = 'flex';
-                    actions.style.gap = '5px';
-                    actions.style.marginTop = '10px';
+                    actions.className = 'ticket-actions';
                     
                     const endBtn = document.createElement('button');
                     endBtn.innerText = 'End';
-                    endBtn.className = 'btn btn-secondary';
-                    endBtn.style.flex = '1';
-                    endBtn.style.padding = '5px';
-                    endBtn.style.fontSize = '0.8em';
+                    endBtn.className = 'btn btn-secondary btn-sm flex-1';
                     endBtn.onclick = () => {
                         fetch(`/admin/tickets/${ticket.id}/end`, { method: 'POST' });
                     };
                     
                     const banBtn = document.createElement('button');
                     banBtn.innerText = 'Ban';
-                    banBtn.className = 'btn btn-secondary';
-                    banBtn.style.flex = '1';
-                    banBtn.style.padding = '5px';
-                    banBtn.style.fontSize = '0.8em';
+                    banBtn.className = 'btn btn-danger btn-sm flex-1';
                     if (ticket.is_banned === 1) banBtn.disabled = true;
                     banBtn.onclick = () => {
                         fetch(`/admin/tickets/${ticket.id}/ban`, { method: 'POST' });

@@ -1,87 +1,98 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Theater {{ theater_number }} - Cinematic Break</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/static/main.css">
     <style>
-        body {
-            background-color: #000000;
-            color: #ffffff;
-            font-family: sans-serif;
+        .theater-body {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            margin: 0;
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding: var(--padding-lg);
             text-align: center;
         }
 
-        h1 {
-            font-size: 3rem;
-            color: #e50914;
-            margin-bottom: 10px;
+        .theater-title {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            color: var(--accent);
+            margin-bottom: var(--margin-xs);
         }
 
-        h2 {
-            font-size: 2rem;
-            color: #cccccc;
-            margin-bottom: 40px;
+        .theater-subtitle {
+            font-size: clamp(1.2rem, 3vw, 2rem);
+            color: var(--text-muted);
+            margin-bottom: var(--margin-xl);
         }
 
-        .qr-container {
-            background-color: #222222;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        .theater-qr-card {
+            background-color: var(--surface);
+            border: 1px solid var(--surface-hover);
+            padding: var(--padding-xl);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--gap-md);
         }
 
-        img {
-            width: 300px;
-            height: 300px;
-            border-radius: 8px;
+        .theater-qr-img {
+            width: clamp(200px, 40vw, 320px);
+            height: clamp(200px, 40vw, 320px);
+            border-radius: var(--radius);
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: pixelated;
         }
 
-        .join-code {
-            margin-top: 20px;
-            font-family: monospace;
-            font-size: 2.5rem;
-            letter-spacing: 5px;
-            background: #111111;
-            padding: 10px;
-            border-radius: 8px;
+        .theater-join-code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: clamp(1.6rem, 4vw, 2.6rem);
+            letter-spacing: 0.2em;
+            background: var(--bg);
+            border: 1px solid var(--surface-hover);
+            padding: 0.3em 0.8em;
+            border-radius: var(--radius);
+            color: var(--text);
+            width: 100%;
         }
 
-        .empty {
-            color: #888888;
+        .theater-hint {
+            margin-top: var(--margin-xl);
+            font-size: clamp(1rem, 2vw, 1.25rem);
+            color: var(--text-muted);
+        }
+
+        .theater-empty {
+            color: var(--text-dim);
             font-style: italic;
         }
     </style>
 </head>
-
-<body>
+<body class="theater-body">
     {% if session %}
-    <h1>{{ session.movie_title }}</h1>
-    <h2>Theater {{ theater_number }}</h2>
-    <div class="qr-container">
-        <img src="/sessions/{{ session.id }}/qr" alt="Join Code QR" />
-        <div class="join-code">{{ session.join_code }}</div>
+    <h1 class="theater-title">{{ session.movie_title }}</h1>
+    <h2 class="theater-subtitle">Theater {{ theater_number }}</h2>
+    <div class="theater-qr-card">
+        <img src="/sessions/{{ session.id }}/qr" alt="Join Code QR" class="theater-qr-img" />
+        <div class="theater-join-code">{{ session.join_code }}</div>
     </div>
-    <p style="margin-top: 40px; font-size: 1.2rem; color: #aaaaaa;">Scan the QR code to join this session!</p>
+    <p class="theater-hint">Scan the QR code or enter code to join on your device</p>
     {% else %}
-    <h2>Theater {{ theater_number }}</h2>
-    <h1 class="empty">No Active Session</h1>
-    <p style="font-size: 1.2rem; color: #aaaaaa;">Please wait for the next presentation to begin.</p>
+    <h2 class="theater-subtitle">Theater {{ theater_number }}</h2>
+    <h1 class="theater-empty">No Active Session</h1>
+    <p class="theater-hint">Please wait for the next presentation to begin.</p>
     {% endif %}
 
     <script>
-        // Auto-refresh the page every 30 seconds to catch new sessions
         setInterval(() => {
             window.location.reload();
         }, 30000);
     </script>
 </body>
-
 </html>

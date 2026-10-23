@@ -8,13 +8,16 @@
     <link rel="stylesheet" href="/static/main.css">
 </head>
 <body>
-    <div class="header-full">
-        <div class="flex gap-15 align-center">
-            <h1 class="m-0"><a href="/" style="color: white; text-decoration: none;">Cinematic Break</a></h1>
+    <div class="header">
+        <div class="flex gap-md align-center">
+            <h1 class="brand-title"><a href="/" class="brand-link">Cinematic Break</a></h1>
         </div>
-        <div class="flex gap-15 align-center">
-            <a href="/settings" class="icon-link" title="Settings">
+        <div class="flex gap-md align-center">
+            <a href="/settings" class="icon-link" title="Settings" aria-label="Settings">
                 <i data-lucide="settings"></i>
+            </a>
+            <a href="/logout" class="icon-link" title="Logout" aria-label="Logout">
+                <i data-lucide="log-out"></i>
             </a>
         </div>
     </div>
@@ -24,32 +27,39 @@
     </div>
 
     <!-- Modal for new session -->
-    <div id="sessionModal" class="modal">
-        <div class="modal-content">
-            <h2>Start New Session</h2>
-            <form id="sessionForm" method="POST" action="/sessions">
-                <input type="hidden" id="movie_title_input" name="movie_title" value="">
-                
-                <div class="form-group">
-                    <label for="movie_title_display">Movie</label>
-                    <input type="text" id="movie_title_display" disabled>
-                </div>
+    <div id="sessionModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2 class="modal-title">Start New Session</h2>
+                <button type="button" class="modal-close" onclick="closeModal()" aria-label="Close modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="sessionForm" method="POST" action="/sessions">
+                    <input type="hidden" id="movie_title_input" name="movie_title" value="">
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="movie_title_display">Movie</label>
+                        <input type="text" id="movie_title_display" disabled>
+                    </div>
 
-                <div class="form-group">
-                    <label for="session_name">Session Name (Optional)</label>
-                    <input type="text" id="session_name" name="session_name" placeholder="e.g. Evening Showing">
-                </div>
+                    <div class="form-group">
+                        <label class="form-label" for="session_name">Session Name (Optional)</label>
+                        <input type="text" id="session_name" name="session_name" placeholder="e.g. Evening Showing">
+                    </div>
 
-                <div class="form-group">
-                    <label for="theater_number">Theater Number (Optional)</label>
-                    <input type="text" id="theater_number" name="theater_number" placeholder="e.g. 5">
-                </div>
+                    <div class="form-group">
+                        <label class="form-label" for="theater_number">Theater Number (Optional)</label>
+                        <input type="text" id="theater_number" name="theater_number" placeholder="e.g. 5">
+                    </div>
 
-                <div class="button-group">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-                    <button type="submit" class="btn">Create Session</button>
-                </div>
-            </form>
+                    <div class="button-group">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                        <button type="submit" class="btn">Create Session</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -69,7 +79,6 @@
             modal.classList.remove('show');
         }
 
-        // Close if clicking outside the modal content
         window.onclick = function(event) {
             if (event.target == modal) {
                 closeModal();
@@ -77,6 +86,10 @@
         }
     </script>
     <script src="/static/lucide.min.js"></script>
-    <script>lucide.createIcons();</script>
+    <script>
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    </script>
 </body>
 </html>

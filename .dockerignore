@@ -1,8 +1,7 @@
-@"
 .git/
 media/
 cinematicbreak.db
+config/
 venv/
 env/
 __pycache__/
-"@ > .dockerignore

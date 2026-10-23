@@ -2,12 +2,15 @@ services:
   cinematicbreak:
     build: .
     container_name: cinematicbreak
+    environment:
+      # These tell the container who to pretend to be (Defaults if not specified in .env)
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-America/Chicago}
     ports:
       - "8000:8000"
     volumes:
-      - ./app:/app/app
       - ./config:/config
-      - ./media:/app/media:ro
-    environment:
-      - TZ=America/Chicago
+      - ./app:/app/app
+      - ./media:/media:ro
     restart: unless-stopped
