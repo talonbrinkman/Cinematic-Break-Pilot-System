@@ -44,11 +44,13 @@
     .view-button[aria-pressed="true"] {
         background: rgba(255, 255, 255, 0.14);
         border-color: rgba(255, 255, 255, 0.35);
-        color: inherit;
     }
 
     .view-button:focus-visible,
-    .session-list-summary:focus-visible {
+    .session-list-summary:focus-visible,
+    .toolbar-reset:focus-visible,
+    .filter-toggle:focus-visible,
+    .filter-menu input:focus-visible {
         outline: 2px solid rgba(255, 255, 255, 0.65);
         outline-offset: 3px;
     }
@@ -56,6 +58,189 @@
     .view-button i {
         width: 17px;
         height: 17px;
+    }
+
+    .collection-controls {
+        margin-bottom: 17px;
+    }
+
+    .collection-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .collection-search {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        flex: 0 1 320px;
+        width: 320px;
+        min-width: 0;
+        height: 40px;
+        padding: 0 11px;
+        box-sizing: border-box;
+        background: rgba(255, 255, 255, 0.045);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 8px;
+    }
+
+    .collection-search:focus-within {
+        border-color: rgba(255, 255, 255, 0.48);
+    }
+
+    .collection-search i {
+        width: 17px;
+        height: 17px;
+        flex: none;
+        opacity: 0.65;
+    }
+
+    .collection-search input {
+        width: 100%;
+        min-width: 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 0.88rem;
+    }
+
+    .collection-search input::placeholder {
+        color: inherit;
+        opacity: 0.55;
+    }
+
+    .filter-container {
+        position: relative;
+        flex: none;
+    }
+
+    .filter-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.045);
+        color: inherit;
+        cursor: pointer;
+        transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .filter-toggle:hover,
+    .filter-toggle[aria-expanded="true"] {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.32);
+    }
+
+    .filter-toggle.is-filtered {
+        border-color: rgba(255, 255, 255, 0.55);
+        background: rgba(255, 255, 255, 0.13);
+    }
+
+    .filter-toggle i {
+        width: 18px;
+        height: 18px;
+    }
+
+    .filter-menu {
+        position: absolute;
+        z-index: 50;
+        top: calc(100% + 8px);
+        right: 0;
+        width: 245px;
+        max-width: calc(100vw - 40px);
+        padding: 16px;
+        box-sizing: border-box;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        background: #252525;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    .filter-menu[hidden] {
+        display: none !important;
+    }
+
+    .filter-group + .filter-group {
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .filter-group-title {
+        margin-bottom: 8px;
+        font-size: 0.74rem;
+        font-weight: 650;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        opacity: 0.65;
+    }
+
+    .filter-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 36px;
+        padding: 4px 7px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        cursor: pointer;
+    }
+
+    .filter-option:hover {
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .filter-option input {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        accent-color: #9a9a9a;
+        cursor: pointer;
+    }
+
+    .collection-result-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 24px;
+        margin-top: 8px;
+        font-size: 0.79rem;
+        opacity: 0.75;
+    }
+
+    .toolbar-reset {
+        padding: 2px 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        cursor: pointer;
+    }
+
+    .collection-no-results {
+        padding: 28px 15px;
+        text-align: center;
+        color: inherit;
+        opacity: 0.75;
+        border: 1px dashed rgba(255, 255, 255, 0.17);
+        border-radius: 8px;
+    }
+
+    #activeSessions > .session-card[hidden],
+    #recentMediaItems > .media-card[hidden],
+    .collection-no-results[hidden],
+    .toolbar-reset[hidden] {
+        display: none !important;
     }
 
     .dashboard-section-divider {
@@ -295,6 +480,20 @@
     }
 
     @media (max-width: 600px) {
+        .collection-search {
+            flex: 1 1 auto;
+            width: auto;
+        }
+
+        .filter-toggle {
+            width: 42px;
+            height: 42px;
+        }
+
+        .collection-search {
+            height: 42px;
+        }
+
         #activeSessions.sessions-list .session-list-summary {
             align-items: flex-start;
             flex-direction: column;
@@ -372,24 +571,13 @@
 
     {% if sessions %}
     <div class="view-switcher" role="group" aria-label="Active sessions view">
-        <button
-            type="button"
-            id="sessionGridButton"
-            class="view-button"
-            aria-label="Grid view"
-            aria-pressed="true"
-            onclick="setSessionView('grid')">
+        <button type="button" id="sessionGridButton" class="view-button"
+            aria-label="Grid view" aria-pressed="true" onclick="setSessionView('grid')">
             <i data-lucide="layout-grid" aria-hidden="true"></i>
             Grid
         </button>
-
-        <button
-            type="button"
-            id="sessionListButton"
-            class="view-button"
-            aria-label="List view"
-            aria-pressed="false"
-            onclick="setSessionView('list')">
+        <button type="button" id="sessionListButton" class="view-button"
+            aria-label="List view" aria-pressed="false" onclick="setSessionView('list')">
             <i data-lucide="list" aria-hidden="true"></i>
             List
         </button>
@@ -403,22 +591,55 @@
     <form method="POST" action="/sessions/pause_all" class="m-0">
         <button type="submit" class="btn btn-secondary">Pause All Sessions</button>
     </form>
-
     <form method="POST" action="/sessions/resume_all" class="m-0">
         <button type="submit" class="btn btn-secondary">Resume All Sessions</button>
     </form>
-
     <form method="POST" action="/sessions/stop_all" class="m-0"
         onsubmit="return confirm('Are you sure you want to end all sessions?');">
         <button type="submit" class="btn">End All Sessions</button>
     </form>
 </div>
 
+<div class="collection-controls">
+    <div class="collection-toolbar">
+        <label class="collection-search">
+            <i data-lucide="search" aria-hidden="true"></i>
+            <input type="search" id="sessionSearch" autocomplete="off"
+                aria-label="Search active sessions" placeholder="Search sessions...">
+        </label>
+        <div class="filter-container">
+            <button type="button" id="sessionFilterButton" class="filter-toggle"
+                aria-label="Filter and sort active sessions" aria-controls="sessionFilterMenu"
+                aria-expanded="false" onclick="toggleFilterMenu('sessionFilterMenu', this)">
+                <i data-lucide="list-filter" aria-hidden="true"></i>
+            </button>
+            <div id="sessionFilterMenu" class="filter-menu" hidden>
+                <div class="filter-group" role="group" aria-label="Session status">
+                    <div class="filter-group-title">Status</div>
+                    <label class="filter-option"><input type="checkbox" name="sessionStatus" value="playing" checked> Playing</label>
+                    <label class="filter-option"><input type="checkbox" name="sessionStatus" value="paused" checked> Paused</label>
+                </div>
+                <div class="filter-group" role="group" aria-label="Sort active sessions">
+                    <div class="filter-group-title">Sort by</div>
+                    <label class="filter-option"><input type="checkbox" name="sessionSort" value="default" checked> Default order</label>
+                    <label class="filter-option"><input type="checkbox" name="sessionSort" value="az"> Title A–Z</label>
+                    <label class="filter-option"><input type="checkbox" name="sessionSort" value="za"> Title Z–A</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="collection-result-row">
+        <span id="sessionResultCount" aria-live="polite"></span>
+        <button type="button" id="resetSessionFilters" class="toolbar-reset" hidden>Clear filters</button>
+    </div>
+</div>
+
 <div id="activeSessions" class="carousel-row sessions-grid">
-
     {% for session in sessions %}
-
-    <div class="session-card">
+    <div class="session-card"
+        data-title="{{ session.movie_title|e }}"
+        data-search="{{ session.movie_title|e }} {{ (session.session_name or '')|e }} {% if session.theater_number and session.theater_number != 'None' %}theater {{ session.theater_number|e }}{% endif %} {{ session.join_code|e }}"
+        data-status="{{ 'paused' if session.is_paused else 'playing' }}">
 
         <div>
             <h3 class="session-title">
@@ -436,7 +657,6 @@
             </div>
 
             <div class="session-meta">
-
                 {% if session.session_name %}
                 <div class="session-meta-row">
                     <span>Session</span>
@@ -469,35 +689,27 @@
                     <span>Runtime</span>
                     <span class="runtime"
                         data-elapsed="{{ session.elapsed_seconds }}"
-                        data-paused="{{ 'true' if session.is_paused else 'false' }}">
-                        00:00:00
-                    </span>
+                        data-paused="{{ 'true' if session.is_paused else 'false' }}">00:00:00</span>
                 </div>
 
                 <div class="session-meta-row">
                     <span>Remaining</span>
                     <span class="remaining"
                         data-elapsed="{{ session.elapsed_seconds }}"
-                        data-duration="{{ session.duration_seconds }}">
-                        00:00:00
-                    </span>
+                        data-duration="{{ session.duration_seconds }}">00:00:00</span>
                 </div>
-
             </div>
         </div>
 
-        <img src="/sessions/{{ session.id }}/qr"
-            class="qr-code" alt="Join Code QR" />
+        <img src="/sessions/{{ session.id }}/qr" class="qr-code" alt="Join Code QR" />
 
         <div class="session-card-actions">
-
             <button type="button" class="btn btn-primary w-100"
                 onclick="openTicketsModal({{ session.id }}, {{ session.movie_title|tojson|forceescape }})">
                 View Valid Tickets
             </button>
 
             <div class="session-btn-row">
-
                 {% if session.is_paused %}
                 <form method="POST" action="/sessions/{{ session.id }}/resume" class="m-0 flex-1">
                     <button type="submit" class="btn btn-secondary w-100">Resume</button>
@@ -511,19 +723,13 @@
                 <form method="POST" action="/sessions/{{ session.id }}/stop" class="m-0 flex-1">
                     <button type="submit" class="btn btn-secondary w-100">End</button>
                 </form>
-
             </div>
         </div>
 
-        <button
-            type="button"
-            class="session-list-summary"
-            aria-expanded="false"
-            onclick="toggleSessionDetails(this)">
-
+        <button type="button" class="session-list-summary"
+            aria-expanded="false" onclick="toggleSessionDetails(this)">
             <span class="session-list-label">
                 <span class="session-list-title">{{ session.movie_title }}</span>
-
                 <span class="session-list-subtitle">
                     {% if session.session_name %}
                         {{ session.session_name }}
@@ -536,561 +742,513 @@
             </span>
 
             <span class="session-list-stats">
-
                 {% if session.is_paused %}
                 <span class="session-list-status text-paused">● Paused</span>
                 {% else %}
                 <span class="session-list-status text-playing">● Playing</span>
                 {% endif %}
-
                 <span class="session-list-runtime runtime"
                     data-elapsed="{{ session.elapsed_seconds }}"
-                    data-paused="{{ 'true' if session.is_paused else 'false' }}">
-                    00:00:00
-                </span>
-
+                    data-paused="{{ 'true' if session.is_paused else 'false' }}">00:00:00</span>
                 <span class="session-list-chevron">
                     <i data-lucide="chevron-down" aria-hidden="true"></i>
                 </span>
-
             </span>
-
         </button>
-
     </div>
-
     {% endfor %}
+</div>
 
+<div id="sessionNoResults" class="collection-no-results" hidden>
+    No sessions match your search or filters.
 </div>
 
 {% else %}
-
 <div class="empty-state">No active sessions.</div>
-
 {% endif %}
 
-<div
-    class="dashboard-section-divider"
-    role="separator"
-    aria-label="Active Sessions and Media">
-</div>
+<div class="dashboard-section-divider" role="separator" aria-label="Active Sessions and Media"></div>
 
 <div class="view-section-header">
-
     <div class="section-title">Media</div>
 
     {% if media_items %}
-
     <div class="view-switcher" role="group" aria-label="Media view">
-
-        <button
-            type="button"
-            id="mediaGridButton"
-            class="view-button"
-            aria-label="Grid view"
-            aria-pressed="true"
-            onclick="setMediaView('grid')">
-
+        <button type="button" id="mediaGridButton" class="view-button"
+            aria-label="Grid view" aria-pressed="true" onclick="setMediaView('grid')">
             <i data-lucide="layout-grid" aria-hidden="true"></i>
             Grid
-
         </button>
-
-        <button
-            type="button"
-            id="mediaListButton"
-            class="view-button"
-            aria-label="List view"
-            aria-pressed="false"
-            onclick="setMediaView('list')">
-
+        <button type="button" id="mediaListButton" class="view-button"
+            aria-label="List view" aria-pressed="false" onclick="setMediaView('list')">
             <i data-lucide="list" aria-hidden="true"></i>
             List
-
         </button>
-
     </div>
-
     {% endif %}
-
 </div>
 
 {% if media_items %}
 
+<div class="collection-controls">
+    <div class="collection-toolbar">
+        <label class="collection-search">
+            <i data-lucide="search" aria-hidden="true"></i>
+            <input type="search" id="mediaSearch" autocomplete="off"
+                aria-label="Search media" placeholder="Search media...">
+        </label>
+        <div class="filter-container">
+            <button type="button" id="mediaFilterButton" class="filter-toggle"
+                aria-label="Sort media" aria-controls="mediaFilterMenu"
+                aria-expanded="false" onclick="toggleFilterMenu('mediaFilterMenu', this)">
+                <i data-lucide="list-filter" aria-hidden="true"></i>
+            </button>
+            <div id="mediaFilterMenu" class="filter-menu" hidden>
+                <div class="filter-group" role="group" aria-label="Sort media">
+                    <div class="filter-group-title">Sort by</div>
+                    <label class="filter-option"><input type="checkbox" name="mediaSort" value="default" checked> Default order</label>
+                    <label class="filter-option"><input type="checkbox" name="mediaSort" value="az"> Title A–Z</label>
+                    <label class="filter-option"><input type="checkbox" name="mediaSort" value="za"> Title Z–A</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="collection-result-row">
+        <span id="mediaResultCount" aria-live="polite"></span>
+        <button type="button" id="resetMediaFilters" class="toolbar-reset" hidden>Clear filters</button>
+    </div>
+</div>
+
 <div id="recentMediaItems" class="carousel-row media-grid">
-
     {% for item in media_items %}
-
-    <div class="media-card">
-
-        <div
-            class="poster-container"
+    <div class="media-card" data-title="{{ item.title|e }}">
+        <div class="poster-container"
             onclick="openModal({{ item.title|tojson|forceescape }})"
             title="Start Session for {{ item.title }}">
-
-            <div class="poster-text">
-                {{ item.title }}
-            </div>
-
+            <div class="poster-text">{{ item.title }}</div>
         </div>
-
     </div>
-
     {% endfor %}
+</div>
 
+<div id="mediaNoResults" class="collection-no-results" hidden>
+    No media matches your search.
 </div>
 
 {% else %}
-
 <div class="empty-state">No media found in /media directory.</div>
-
 {% endif %}
 
 <!-- Tickets Modal -->
 
 <div id="ticketsModal" class="modal-overlay">
-
     <div class="modal-box">
-
         <div class="modal-header">
-
             <h2 class="modal-title" id="ticketsModalTitle">Valid Tickets</h2>
-
             <button onclick="closeTicketsModal()" class="modal-close" aria-label="Close modal">
                 <i data-lucide="x"></i>
             </button>
-
         </div>
-
         <div class="modal-body">
-
             <div id="ticketsModalGrid" class="tickets-grid">
                 <!-- tickets injected here -->
             </div>
-
         </div>
-
     </div>
-
 </div>
 
 <script>
-
     function setSessionView(view) {
-
         const container = document.getElementById('activeSessions');
-
         if (!container) return;
 
         const selectedView = view === 'list' ? 'list' : 'grid';
+        container.classList.toggle('sessions-grid', selectedView === 'grid');
+        container.classList.toggle('sessions-list', selectedView === 'list');
 
-        container.classList.toggle(
-            'sessions-grid',
-            selectedView === 'grid'
-        );
-
-        container.classList.toggle(
-            'sessions-list',
-            selectedView === 'list'
-        );
-
-        const gridButton = document.getElementById('sessionGridButton');
-        const listButton = document.getElementById('sessionListButton');
-
-        if (gridButton) {
-            gridButton.setAttribute(
-                'aria-pressed',
-                String(selectedView === 'grid')
-            );
-        }
-
-        if (listButton) {
-            listButton.setAttribute(
-                'aria-pressed',
-                String(selectedView === 'list')
-            );
-        }
+        document.getElementById('sessionGridButton').setAttribute('aria-pressed', String(selectedView === 'grid'));
+        document.getElementById('sessionListButton').setAttribute('aria-pressed', String(selectedView === 'list'));
 
         try {
             localStorage.setItem('activeSessionView', selectedView);
         } catch (error) {
         }
-
     }
 
     function toggleSessionDetails(button) {
-
         const card = button.closest('.session-card');
-
         if (!card) return;
 
         const expanded = card.classList.toggle('is-expanded');
-
-        button.setAttribute(
-            'aria-expanded',
-            String(expanded)
-        );
-
+        button.setAttribute('aria-expanded', String(expanded));
     }
 
     function setMediaView(view) {
-
         const container = document.getElementById('recentMediaItems');
-
         if (!container) return;
 
         const selectedView = view === 'list' ? 'list' : 'grid';
+        container.classList.toggle('media-grid', selectedView === 'grid');
+        container.classList.toggle('media-list', selectedView === 'list');
 
-        container.classList.toggle(
-            'media-grid',
-            selectedView === 'grid'
-        );
-
-        container.classList.toggle(
-            'media-list',
-            selectedView === 'list'
-        );
-
-        const gridButton = document.getElementById('mediaGridButton');
-        const listButton = document.getElementById('mediaListButton');
-
-        if (gridButton) {
-            gridButton.setAttribute(
-                'aria-pressed',
-                String(selectedView === 'grid')
-            );
-        }
-
-        if (listButton) {
-            listButton.setAttribute(
-                'aria-pressed',
-                String(selectedView === 'list')
-            );
-        }
+        document.getElementById('mediaGridButton').setAttribute('aria-pressed', String(selectedView === 'grid'));
+        document.getElementById('mediaListButton').setAttribute('aria-pressed', String(selectedView === 'list'));
 
         try {
             localStorage.setItem('recentMediaView', selectedView);
         } catch (error) {
         }
+    }
 
+    function normalizeSearch(text) {
+        return String(text).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().trim();
+    }
+
+    function reorderCollection(container, entries, sort) {
+        const sorted = entries.slice();
+
+        if (sort === 'az') {
+            sorted.sort((a, b) => a.title.localeCompare(b.title) || a.index - b.index);
+        } else if (sort === 'za') {
+            sorted.sort((a, b) => b.title.localeCompare(a.title) || a.index - b.index);
+        } else {
+            sorted.sort((a, b) => a.index - b.index);
+        }
+
+        if (sorted.every((entry, index) => container.children[index] === entry.element)) return;
+
+        const fragment = document.createDocumentFragment();
+        sorted.forEach(entry => fragment.appendChild(entry.element));
+        container.appendChild(fragment);
+    }
+
+    function closeFilterMenus(exceptMenu) {
+        document.querySelectorAll('.filter-menu').forEach(menu => {
+            if (menu === exceptMenu) return;
+            menu.hidden = true;
+            const trigger = document.querySelector(`[aria-controls="${menu.id}"]`);
+            if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        });
+    }
+
+    function toggleFilterMenu(menuId, trigger) {
+        const menu = document.getElementById(menuId);
+        const shouldOpen = menu.hidden;
+        closeFilterMenus();
+        menu.hidden = !shouldOpen;
+        trigger.setAttribute('aria-expanded', String(shouldOpen));
+        if (shouldOpen) menu.querySelector('input')?.focus();
+    }
+
+    document.addEventListener('click', event => {
+        if (!event.target.closest('.filter-container')) closeFilterMenus();
+    });
+
+    document.addEventListener('keydown', event => {
+        if (event.key !== 'Escape') return;
+        const menu = Array.from(document.querySelectorAll('.filter-menu'))
+            .find(element => !element.hidden);
+        if (!menu) return;
+        const trigger = document.querySelector(`[aria-controls="${menu.id}"]`);
+        closeFilterMenus();
+        if (trigger) trigger.focus();
+    });
+
+    function setupCollectionFilters(config) {
+        const container = document.getElementById(config.containerId);
+        if (!container) return;
+
+        const search = document.getElementById(config.searchId);
+        const sortOptions = Array.from(document.querySelectorAll(`input[name="${config.sortGroup}"]`));
+        const statusOptions = config.statusGroup
+            ? Array.from(document.querySelectorAll(`input[name="${config.statusGroup}"]`))
+            : [];
+        const filterButton = document.getElementById(config.filterButtonId);
+        const count = document.getElementById(config.countId);
+        const noResults = document.getElementById(config.noResultsId);
+        const reset = document.getElementById(config.resetId);
+
+        const entries = Array.from(container.children).map((element, index) => ({
+            element,
+            index,
+            title: normalizeSearch(element.dataset.title || ''),
+            searchText: normalizeSearch(element.dataset.search || element.dataset.title || ''),
+            status: element.dataset.status || ''
+        }));
+
+        let pendingFrame = null;
+
+        function selectedSort() {
+            return sortOptions.find(option => option.checked)?.value || 'default';
+        }
+
+        function filter() {
+            const terms = normalizeSearch(search.value).split(/\s+/).filter(Boolean);
+            const selectedStatuses = new Set(
+                statusOptions.filter(option => option.checked).map(option => option.value)
+            );
+            let visible = 0;
+
+            for (const entry of entries) {
+                const matchesText = terms.every(term => entry.searchText.includes(term));
+                const matchesStatus = !statusOptions.length || selectedStatuses.has(entry.status);
+                const shouldHide = !(matchesText && matchesStatus);
+                if (entry.element.hidden !== shouldHide) entry.element.hidden = shouldHide;
+                if (!shouldHide) visible++;
+            }
+
+            const modified = selectedSort() !== 'default' || statusOptions.some(option => !option.checked);
+            count.textContent = `${visible} of ${entries.length} ${config.itemLabel}`;
+            noResults.hidden = visible !== 0;
+            reset.hidden = !search.value.trim() && !modified;
+            filterButton.classList.toggle('is-filtered', modified);
+        }
+
+        function scheduleFilter() {
+            if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
+            pendingFrame = requestAnimationFrame(() => {
+                pendingFrame = null;
+                filter();
+            });
+        }
+
+        search.addEventListener('input', scheduleFilter);
+        statusOptions.forEach(option => option.addEventListener('change', filter));
+
+        sortOptions.forEach(option => option.addEventListener('change', () => {
+            if (!option.checked) {
+                option.checked = true;
+                return;
+            }
+            sortOptions.forEach(other => {
+                if (other !== option) other.checked = false;
+            });
+            reorderCollection(container, entries, option.value);
+            filter();
+        }));
+
+        reset.addEventListener('click', () => {
+            search.value = '';
+            sortOptions.forEach(option => { option.checked = option.value === 'default'; });
+            statusOptions.forEach(option => { option.checked = true; });
+            reorderCollection(container, entries, 'default');
+            filter();
+            search.focus();
+        });
+
+        filter();
     }
 
     function fallbackCopyTextToClipboard(text, el) {
-
-        const textArea = document.createElement("textarea");
-
+        const textArea = document.createElement('textarea');
         textArea.value = text;
-        textArea.style.top = "0";
-        textArea.style.left = "0";
-        textArea.style.position = "fixed";
-
+        textArea.style.top = '0';
+        textArea.style.left = '0';
+        textArea.style.position = 'fixed';
         document.body.appendChild(textArea);
-
         textArea.focus();
         textArea.select();
 
         try {
-
             const successful = document.execCommand('copy');
-
             if (successful) {
-
                 const label = el.querySelector('span') || el;
                 const original = label.innerText;
-
                 label.innerText = 'Copied Link!';
-
                 setTimeout(() => label.innerText = original, 1200);
-
             }
-
         } catch (err) {
-
             console.error('Fallback: unable to copy', err);
-
         }
 
         document.body.removeChild(textArea);
-
     }
 
     function copyText(text, el) {
-
         const label = el.querySelector('span') || el;
         const original = label.innerText;
 
         if (!navigator.clipboard) {
-
             fallbackCopyTextToClipboard(text, el);
             return;
-
         }
 
         navigator.clipboard.writeText(text).then(function () {
-
             label.innerText = 'Copied Link!';
-
             setTimeout(() => label.innerText = original, 1200);
-
         }, function (err) {
-
             console.error('Async: Could not copy text: ', err);
-
             fallbackCopyTextToClipboard(text, el);
-
         });
-
     }
 
     function formatSeconds(sec) {
-
         if (sec < 0) sec = 0;
-
         const h = Math.floor(sec / 3600).toString().padStart(2, '0');
         const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
         const s = Math.floor(sec % 60).toString().padStart(2, '0');
-
         return `${h}:${m}:${s}`;
-
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-
+    document.addEventListener('DOMContentLoaded', () => {
         let storedSessionView = 'grid';
         let storedMediaView = 'grid';
 
         try {
-            storedSessionView =
-                localStorage.getItem('activeSessionView') || 'grid';
-
-            storedMediaView =
-                localStorage.getItem('recentMediaView') || 'grid';
+            storedSessionView = localStorage.getItem('activeSessionView') || 'grid';
+            storedMediaView = localStorage.getItem('recentMediaView') || 'grid';
         } catch (error) {
         }
 
         setSessionView(storedSessionView);
         setMediaView(storedMediaView);
 
+        setupCollectionFilters({
+            containerId: 'activeSessions',
+            searchId: 'sessionSearch',
+            statusGroup: 'sessionStatus',
+            sortGroup: 'sessionSort',
+            filterButtonId: 'sessionFilterButton',
+            countId: 'sessionResultCount',
+            noResultsId: 'sessionNoResults',
+            resetId: 'resetSessionFilters',
+            itemLabel: 'sessions'
+        });
+
+        setupCollectionFilters({
+            containerId: 'recentMediaItems',
+            searchId: 'mediaSearch',
+            sortGroup: 'mediaSort',
+            filterButtonId: 'mediaFilterButton',
+            countId: 'mediaResultCount',
+            noResultsId: 'mediaNoResults',
+            resetId: 'resetMediaFilters',
+            itemLabel: 'media items'
+        });
+
         const pageLoadTime = Date.now();
 
         document.querySelectorAll('.local-time').forEach(el => {
-
             const utcStr = el.getAttribute('data-utc');
-
             if (utcStr) {
-
                 const date = new Date(utcStr.replace(' ', 'T') + 'Z');
-
                 el.innerText = date.toLocaleTimeString([], {
                     hour: 'numeric',
                     minute: '2-digit'
                 });
-
             }
-
         });
 
         function updateSessionTimers() {
-
             const now = Date.now();
 
-            document.querySelectorAll('.session-card').forEach(card => {
-
+            document.querySelectorAll('#activeSessions .session-card').forEach(card => {
                 const runtimeEls = card.querySelectorAll('.runtime');
-                const remainingEls = card.querySelectorAll('.remaining');
+                const remainingEl = card.querySelector('.remaining');
 
-                if (runtimeEls.length && remainingEls.length) {
-
+                if (runtimeEls.length && remainingEl) {
                     const runtimeEl = runtimeEls[0];
-                    const remainingEl = remainingEls[0];
+                    const isPaused = runtimeEl.getAttribute('data-paused') === 'true';
+                    let initialElapsed = parseInt(runtimeEl.getAttribute('data-elapsed'), 10);
+                    if (isNaN(initialElapsed)) initialElapsed = 0;
 
-                    const isPaused =
-                        runtimeEl.getAttribute('data-paused') === 'true';
-
-                    let initialElapsed = parseInt(
-                        runtimeEl.getAttribute('data-elapsed'), 10
-                    );
-
-                    if (isNaN(initialElapsed)) {
-                        initialElapsed = 0;
-                    }
-
-                    const duration = parseInt(
-                        remainingEl.getAttribute('data-duration'), 10
-                    ) || 7200;
-
-                    let elapsedSecs = initialElapsed;
-
-                    if (!isPaused) {
-
-                        elapsedSecs += Math.floor(
-                            (now - pageLoadTime) / 1000
-                        );
-
-                    }
-
+                    const duration = parseInt(remainingEl.getAttribute('data-duration'), 10) || 7200;
+                    const elapsedSecs = initialElapsed + (isPaused ? 0 : Math.floor((now - pageLoadTime) / 1000));
                     const remainSecs = duration - elapsedSecs;
 
                     if (remainSecs <= 0 && !isPaused) {
-
                         window.location.reload();
-
-                    } else {
-
-                        const runtimeText = formatSeconds(elapsedSecs);
-                        const remainingText = formatSeconds(
-                            Math.max(0, remainSecs)
-                        );
-
-                        runtimeEls.forEach(el => {
-                            el.innerText = runtimeText;
-                        });
-
-                        remainingEls.forEach(el => {
-                            el.innerText = remainingText;
-                        });
-
+                        return;
                     }
 
+                    const runtimeText = formatSeconds(elapsedSecs);
+                    runtimeEls.forEach(el => el.innerText = runtimeText);
+                    remainingEl.innerText = formatSeconds(Math.max(0, remainSecs));
                 }
-
             });
-
         }
 
         updateSessionTimers();
-
         setInterval(updateSessionTimers, 1000);
-
     });
 
     let currentTicketsSessionId = null;
     let ticketsPollInterval = null;
 
     function openTicketsModal(sessionId, title) {
-
         currentTicketsSessionId = sessionId;
-
-        document.getElementById('ticketsModalTitle').innerText =
-            'Valid Tickets for ' + title;
-
+        document.getElementById('ticketsModalTitle').innerText = 'Valid Tickets for ' + title;
         document.getElementById('ticketsModal').classList.add('show');
-
         fetchTickets();
-
         ticketsPollInterval = setInterval(fetchTickets, 2000);
-
     }
 
     function closeTicketsModal() {
-
         document.getElementById('ticketsModal').classList.remove('show');
-
         currentTicketsSessionId = null;
-
         clearInterval(ticketsPollInterval);
-
     }
 
     function fetchTickets() {
-
         if (!currentTicketsSessionId) return;
 
         fetch(`/sessions/${currentTicketsSessionId}/tickets`)
-
             .then(res => res.json())
-
             .then(data => {
-
                 const grid = document.getElementById('ticketsModalGrid');
-
                 grid.innerHTML = '';
 
                 data.tickets.forEach(ticket => {
-
                     const card = document.createElement('div');
                     card.className = 'ticket-card';
 
                     const tn = document.createElement('div');
-
                     tn.className = 'ticket-number';
                     tn.innerText = ticket.ticket_number;
-
                     card.appendChild(tn);
 
                     const status = document.createElement('div');
-
                     if (ticket.is_banned === 1) {
-
                         status.className = 'ticket-status-banned';
                         status.innerText = 'Banned';
-
                     } else if (ticket.currently_active === 1) {
-
                         status.className = 'ticket-status-active';
                         status.innerText = '● Active';
-
                     } else if (ticket.is_used === 1) {
-
                         status.className = 'ticket-status-used';
                         status.innerText = 'Used (Inactive)';
-
                     } else {
-
                         status.className = 'ticket-status-avail';
                         status.innerText = 'Available';
-
                     }
-
                     card.appendChild(status);
 
                     const actions = document.createElement('div');
                     actions.className = 'ticket-actions';
 
                     const endBtn = document.createElement('button');
-
                     endBtn.innerText = 'End';
                     endBtn.className = 'btn btn-secondary btn-sm flex-1';
-
                     endBtn.onclick = () => {
-
-                        fetch(`/admin/tickets/${ticket.id}/end`, {
-                            method: 'POST'
-                        });
-
+                        fetch(`/admin/tickets/${ticket.id}/end`, { method: 'POST' });
                     };
 
                     const banBtn = document.createElement('button');
-
                     banBtn.innerText = 'Ban';
                     banBtn.className = 'btn btn-danger btn-sm flex-1';
-
-                    if (ticket.is_banned === 1) {
-                        banBtn.disabled = true;
-                    }
-
+                    if (ticket.is_banned === 1) banBtn.disabled = true;
                     banBtn.onclick = () => {
-
-                        fetch(`/admin/tickets/${ticket.id}/ban`, {
-                            method: 'POST'
-                        });
-
+                        fetch(`/admin/tickets/${ticket.id}/ban`, { method: 'POST' });
                     };
 
                     actions.appendChild(endBtn);
                     actions.appendChild(banBtn);
-
                     card.appendChild(actions);
                     grid.appendChild(card);
-
                 });
-
             })
-
             .catch(err => console.error(err));
-
     }
-
 </script>
 
 {% endblock %}
