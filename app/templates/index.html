@@ -1,44 +1,461 @@
+
 {% extends "base.html" %}
 
 {% block content %}
-<div class="section-title">Active Sessions</div>
+
+<style>
+    .view-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+    }
+
+    .view-section-header .section-title {
+        margin-bottom: 0;
+    }
+
+    .view-switcher {
+        display: flex;
+        gap: 6px;
+    }
+
+    .view-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 8px 12px;
+        border: 1px solid #555;
+        border-radius: 8px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+        transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .view-button:hover {
+        background: rgba(128, 128, 128, 0.15);
+    }
+
+    .view-button[aria-pressed="true"] {
+        background: rgba(255, 255, 255, 0.14);
+        border-color: rgba(255, 255, 255, 0.35);
+        color: inherit;
+    }
+
+    .view-button:focus-visible,
+    .session-list-summary:focus-visible {
+        outline: 2px solid rgba(255, 255, 255, 0.65);
+        outline-offset: 3px;
+    }
+
+    .view-button i {
+        width: 17px;
+        height: 17px;
+    }
+
+    .dashboard-section-divider {
+        height: 1px;
+        width: 100%;
+        margin: 36px 0 28px;
+        background: rgba(255, 255, 255, 0.18);
+        border: 0;
+    }
+
+    .session-list-summary {
+        display: none;
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+        text-align: left;
+    }
+
+    #activeSessions.sessions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        overflow: visible;
+    }
+
+    #activeSessions.sessions-list .session-card {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+        height: auto;
+        aspect-ratio: auto;
+        flex: none;
+        padding: 0;
+        gap: 0;
+        overflow: hidden;
+        transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    #activeSessions.sessions-list .session-card.is-expanded {
+        background: rgba(255, 255, 255, 0.07);
+        border-color: rgba(255, 255, 255, 0.25);
+        box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.45);
+    }
+
+    #activeSessions.sessions-list .session-card > :not(.session-list-summary) {
+        display: none;
+    }
+
+    #activeSessions.sessions-list .session-list-summary {
+        display: flex;
+        order: -1;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px;
+        min-height: 76px;
+        box-sizing: border-box;
+        transition: background 0.2s ease;
+    }
+
+    #activeSessions.sessions-list .session-list-summary:hover {
+        background: rgba(128, 128, 128, 0.08);
+    }
+
+    #activeSessions.sessions-list .session-card.is-expanded .session-list-summary {
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .session-list-label {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .session-list-title {
+        display: block;
+        font-size: 1rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .session-list-subtitle {
+        font-size: 0.8rem;
+        opacity: 0.65;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .session-list-stats {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 20px;
+        flex-shrink: 0;
+    }
+
+    .session-list-status {
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    .session-list-runtime {
+        font-size: 0.85rem;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        opacity: 0.8;
+    }
+
+    .session-list-chevron {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s ease;
+    }
+
+    .session-list-chevron i {
+        width: 20px;
+        height: 20px;
+    }
+
+    #activeSessions.sessions-list .session-card.is-expanded .session-list-chevron {
+        transform: rotate(180deg);
+    }
+
+    #activeSessions.sessions-list .session-card.is-expanded > div:first-child {
+        display: block;
+        order: 0;
+        padding: 16px 18px;
+        border-top: 1px solid rgba(128, 128, 128, 0.2);
+        box-sizing: border-box;
+        min-width: 0;
+    }
+
+    #activeSessions.sessions-list .session-card.is-expanded > .qr-code {
+        display: block;
+        order: 1;
+        align-self: flex-start;
+        width: 140px;
+        height: auto;
+        max-width: calc(100% - 36px);
+        margin: 0 18px 16px;
+    }
+
+    #activeSessions.sessions-list .session-card.is-expanded > .session-card-actions {
+        display: flex;
+        order: 2;
+        flex-direction: column;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0 18px 18px;
+        gap: 10px;
+    }
+
+    #activeSessions.sessions-list .session-btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        width: 100%;
+    }
+
+    #activeSessions.sessions-list .session-btn-row form {
+        min-width: 0;
+    }
+
+    #recentMediaItems.media-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 16px;
+        overflow: visible;
+    }
+
+    #recentMediaItems.media-grid .media-card {
+        width: auto;
+        min-width: 0;
+        max-width: none;
+        flex: initial;
+    }
+
+    #recentMediaItems.media-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        overflow: visible;
+    }
+
+    #recentMediaItems.media-list .media-card {
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+        height: auto;
+        aspect-ratio: auto;
+        flex: none;
+    }
+
+    #recentMediaItems.media-list .poster-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 64px;
+        height: auto;
+        aspect-ratio: auto;
+        padding: 14px 16px;
+        text-align: left;
+    }
+
+    #recentMediaItems.media-list .poster-text {
+        position: static;
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        text-align: left;
+        font-size: 1rem;
+    }
+
+    #recentMediaItems.media-list .poster-container::after {
+        content: "Start Session";
+        flex-shrink: 0;
+        margin-left: 16px;
+        font-size: 0.85rem;
+        opacity: 0.75;
+    }
+
+    @media (max-width: 600px) {
+        #activeSessions.sessions-list .session-list-summary {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 12px;
+            padding: 15px;
+        }
+
+        .session-list-label {
+            width: 100%;
+        }
+
+        .session-list-title {
+            font-size: 0.95rem;
+        }
+
+        .session-list-stats {
+            width: 100%;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .session-list-status,
+        .session-list-runtime {
+            font-size: 0.8rem;
+        }
+
+        #activeSessions.sessions-list .session-card.is-expanded > div:first-child {
+            padding: 15px;
+        }
+
+        #activeSessions.sessions-list .session-card.is-expanded > .qr-code {
+            margin: 0 15px 15px;
+        }
+
+        #activeSessions.sessions-list .session-card.is-expanded > .session-card-actions {
+            padding: 0 15px 15px;
+        }
+
+        #activeSessions.sessions-list .session-btn-row {
+            flex-direction: column;
+        }
+
+        #activeSessions.sessions-list .session-btn-row form {
+            width: 100%;
+        }
+
+        .dashboard-section-divider {
+            margin: 26px 0 22px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .view-section-header {
+            align-items: flex-start;
+        }
+
+        .view-button {
+            padding: 8px 10px;
+            font-size: 0.85rem;
+        }
+
+        #recentMediaItems.media-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        #recentMediaItems.media-list .poster-container::after {
+            content: "Start";
+        }
+    }
+</style>
+
+<div class="view-section-header">
+    <div class="section-title">Active Sessions</div>
+
+    {% if sessions %}
+    <div class="view-switcher" role="group" aria-label="Active sessions view">
+        <button
+            type="button"
+            id="sessionGridButton"
+            class="view-button"
+            aria-label="Grid view"
+            aria-pressed="true"
+            onclick="setSessionView('grid')">
+            <i data-lucide="layout-grid" aria-hidden="true"></i>
+            Grid
+        </button>
+
+        <button
+            type="button"
+            id="sessionListButton"
+            class="view-button"
+            aria-label="List view"
+            aria-pressed="false"
+            onclick="setSessionView('list')">
+            <i data-lucide="list" aria-hidden="true"></i>
+            List
+        </button>
+    </div>
+    {% endif %}
+</div>
 
 {% if sessions %}
+
 <div class="sessions-toolbar">
     <form method="POST" action="/sessions/pause_all" class="m-0">
         <button type="submit" class="btn btn-secondary">Pause All Sessions</button>
     </form>
+
     <form method="POST" action="/sessions/resume_all" class="m-0">
         <button type="submit" class="btn btn-secondary">Resume All Sessions</button>
     </form>
+
     <form method="POST" action="/sessions/stop_all" class="m-0"
         onsubmit="return confirm('Are you sure you want to end all sessions?');">
         <button type="submit" class="btn">End All Sessions</button>
     </form>
 </div>
-<div class="carousel-row">
+
+<div id="activeSessions" class="carousel-row sessions-grid">
+
     {% for session in sessions %}
+
     <div class="session-card">
+
         <div>
             <h3 class="session-title">
-                <a href="/player/{{ session.join_code }}" target="_blank" class="session-title-link" title="{{ session.movie_title }}">
+                <a href="/player/{{ session.join_code }}" target="_blank"
+                    class="session-title-link" title="{{ session.movie_title }}">
                     {{ session.movie_title }}
                 </a>
             </h3>
 
-            <div class="join-code-badge mb-8 mt-15" onclick="copyText('{{ base_url }}player/{{ session.join_code }}', this)" title="Click to copy join link">
+            <div class="join-code-badge mb-8 mt-15"
+                onclick="copyText('{{ base_url }}player/{{ session.join_code }}', this)"
+                title="Click to copy join link">
                 <span><strong>Join Code:</strong> {{ session.join_code }}</span>
                 <i data-lucide="copy"></i>
             </div>
 
             <div class="session-meta">
+
                 {% if session.session_name %}
-                <div class="session-meta-row"><span>Session</span><strong>{{ session.session_name }}</strong></div>
+                <div class="session-meta-row">
+                    <span>Session</span>
+                    <strong>{{ session.session_name }}</strong>
+                </div>
                 {% endif %}
+
                 {% if session.theater_number and session.theater_number != 'None' %}
-                <div class="session-meta-row"><span>Theater</span><strong>{{ session.theater_number }}</strong></div>
+                <div class="session-meta-row">
+                    <span>Theater</span>
+                    <strong>{{ session.theater_number }}</strong>
+                </div>
                 {% endif %}
-                <div class="session-meta-row"><span>Started</span><span class="local-time" data-utc="{{ session.start_time }}"></span></div>
+
+                <div class="session-meta-row">
+                    <span>Started</span>
+                    <span class="local-time" data-utc="{{ session.start_time }}"></span>
+                </div>
+
                 <div class="session-meta-row">
                     <span>Status</span>
                     {% if session.is_paused %}
@@ -47,25 +464,40 @@
                     <span class="text-playing">● Playing</span>
                     {% endif %}
                 </div>
+
                 <div class="session-meta-row">
                     <span>Runtime</span>
-                    <span class="runtime" data-elapsed="{{ session.elapsed_seconds }}" data-paused="{{ 'true' if session.is_paused else 'false' }}">00:00:00</span>
+                    <span class="runtime"
+                        data-elapsed="{{ session.elapsed_seconds }}"
+                        data-paused="{{ 'true' if session.is_paused else 'false' }}">
+                        00:00:00
+                    </span>
                 </div>
+
                 <div class="session-meta-row">
                     <span>Remaining</span>
-                    <span class="remaining" data-elapsed="{{ session.elapsed_seconds }}" data-duration="{{ session.duration_seconds }}">00:00:00</span>
+                    <span class="remaining"
+                        data-elapsed="{{ session.elapsed_seconds }}"
+                        data-duration="{{ session.duration_seconds }}">
+                        00:00:00
+                    </span>
                 </div>
+
             </div>
         </div>
 
-        <img src="/sessions/{{ session.id }}/qr" class="qr-code" alt="Join Code QR" />
+        <img src="/sessions/{{ session.id }}/qr"
+            class="qr-code" alt="Join Code QR" />
 
         <div class="session-card-actions">
+
             <button type="button" class="btn btn-primary w-100"
-                onclick="openTicketsModal({{ session.id }}, '{{ session.movie_title|escape }}')">
+                onclick="openTicketsModal({{ session.id }}, {{ session.movie_title|tojson|forceescape }})">
                 View Valid Tickets
             </button>
+
             <div class="session-btn-row">
+
                 {% if session.is_paused %}
                 <form method="POST" action="/sessions/{{ session.id }}/resume" class="m-0 flex-1">
                     <button type="submit" class="btn btn-secondary w-100">Resume</button>
@@ -75,214 +507,590 @@
                     <button type="submit" class="btn btn-secondary w-100">Pause</button>
                 </form>
                 {% endif %}
+
                 <form method="POST" action="/sessions/{{ session.id }}/stop" class="m-0 flex-1">
                     <button type="submit" class="btn btn-secondary w-100">End</button>
                 </form>
+
             </div>
         </div>
+
+        <button
+            type="button"
+            class="session-list-summary"
+            aria-expanded="false"
+            onclick="toggleSessionDetails(this)">
+
+            <span class="session-list-label">
+                <span class="session-list-title">{{ session.movie_title }}</span>
+
+                <span class="session-list-subtitle">
+                    {% if session.session_name %}
+                        {{ session.session_name }}
+                    {% elif session.theater_number and session.theater_number != 'None' %}
+                        Theater {{ session.theater_number }}
+                    {% else %}
+                        Session {{ session.join_code }}
+                    {% endif %}
+                </span>
+            </span>
+
+            <span class="session-list-stats">
+
+                {% if session.is_paused %}
+                <span class="session-list-status text-paused">● Paused</span>
+                {% else %}
+                <span class="session-list-status text-playing">● Playing</span>
+                {% endif %}
+
+                <span class="session-list-runtime runtime"
+                    data-elapsed="{{ session.elapsed_seconds }}"
+                    data-paused="{{ 'true' if session.is_paused else 'false' }}">
+                    00:00:00
+                </span>
+
+                <span class="session-list-chevron">
+                    <i data-lucide="chevron-down" aria-hidden="true"></i>
+                </span>
+
+            </span>
+
+        </button>
+
     </div>
+
     {% endfor %}
+
 </div>
+
 {% else %}
+
 <div class="empty-state">No active sessions.</div>
+
 {% endif %}
 
-<div class="section-title">Recently Added Media</div>
+<div
+    class="dashboard-section-divider"
+    role="separator"
+    aria-label="Active Sessions and Media">
+</div>
+
+<div class="view-section-header">
+
+    <div class="section-title">Media</div>
+
+    {% if media_items %}
+
+    <div class="view-switcher" role="group" aria-label="Media view">
+
+        <button
+            type="button"
+            id="mediaGridButton"
+            class="view-button"
+            aria-label="Grid view"
+            aria-pressed="true"
+            onclick="setMediaView('grid')">
+
+            <i data-lucide="layout-grid" aria-hidden="true"></i>
+            Grid
+
+        </button>
+
+        <button
+            type="button"
+            id="mediaListButton"
+            class="view-button"
+            aria-label="List view"
+            aria-pressed="false"
+            onclick="setMediaView('list')">
+
+            <i data-lucide="list" aria-hidden="true"></i>
+            List
+
+        </button>
+
+    </div>
+
+    {% endif %}
+
+</div>
 
 {% if media_items %}
-<div class="carousel-row">
+
+<div id="recentMediaItems" class="carousel-row media-grid">
+
     {% for item in media_items %}
+
     <div class="media-card">
-        <div class="poster-container" onclick="openModal('{{ item.title | escape }}')" title="Start Session for {{ item.title }}">
-            <div class="poster-text">{{ item.title }}</div>
+
+        <div
+            class="poster-container"
+            onclick="openModal({{ item.title|tojson|forceescape }})"
+            title="Start Session for {{ item.title }}">
+
+            <div class="poster-text">
+                {{ item.title }}
+            </div>
+
         </div>
+
     </div>
+
     {% endfor %}
+
 </div>
+
 {% else %}
+
 <div class="empty-state">No media found in /media directory.</div>
+
 {% endif %}
 
 <!-- Tickets Modal -->
+
 <div id="ticketsModal" class="modal-overlay">
+
     <div class="modal-box">
+
         <div class="modal-header">
+
             <h2 class="modal-title" id="ticketsModalTitle">Valid Tickets</h2>
-            <button onclick="closeTicketsModal()" class="modal-close" aria-label="Close modal"><i data-lucide="x"></i></button>
+
+            <button onclick="closeTicketsModal()" class="modal-close" aria-label="Close modal">
+                <i data-lucide="x"></i>
+            </button>
+
         </div>
+
         <div class="modal-body">
+
             <div id="ticketsModalGrid" class="tickets-grid">
                 <!-- tickets injected here -->
             </div>
+
         </div>
+
     </div>
+
 </div>
 
 <script>
+
+    function setSessionView(view) {
+
+        const container = document.getElementById('activeSessions');
+
+        if (!container) return;
+
+        const selectedView = view === 'list' ? 'list' : 'grid';
+
+        container.classList.toggle(
+            'sessions-grid',
+            selectedView === 'grid'
+        );
+
+        container.classList.toggle(
+            'sessions-list',
+            selectedView === 'list'
+        );
+
+        const gridButton = document.getElementById('sessionGridButton');
+        const listButton = document.getElementById('sessionListButton');
+
+        if (gridButton) {
+            gridButton.setAttribute(
+                'aria-pressed',
+                String(selectedView === 'grid')
+            );
+        }
+
+        if (listButton) {
+            listButton.setAttribute(
+                'aria-pressed',
+                String(selectedView === 'list')
+            );
+        }
+
+        try {
+            localStorage.setItem('activeSessionView', selectedView);
+        } catch (error) {
+        }
+
+    }
+
+    function toggleSessionDetails(button) {
+
+        const card = button.closest('.session-card');
+
+        if (!card) return;
+
+        const expanded = card.classList.toggle('is-expanded');
+
+        button.setAttribute(
+            'aria-expanded',
+            String(expanded)
+        );
+
+    }
+
+    function setMediaView(view) {
+
+        const container = document.getElementById('recentMediaItems');
+
+        if (!container) return;
+
+        const selectedView = view === 'list' ? 'list' : 'grid';
+
+        container.classList.toggle(
+            'media-grid',
+            selectedView === 'grid'
+        );
+
+        container.classList.toggle(
+            'media-list',
+            selectedView === 'list'
+        );
+
+        const gridButton = document.getElementById('mediaGridButton');
+        const listButton = document.getElementById('mediaListButton');
+
+        if (gridButton) {
+            gridButton.setAttribute(
+                'aria-pressed',
+                String(selectedView === 'grid')
+            );
+        }
+
+        if (listButton) {
+            listButton.setAttribute(
+                'aria-pressed',
+                String(selectedView === 'list')
+            );
+        }
+
+        try {
+            localStorage.setItem('recentMediaView', selectedView);
+        } catch (error) {
+        }
+
+    }
+
     function fallbackCopyTextToClipboard(text, el) {
+
         const textArea = document.createElement("textarea");
+
         textArea.value = text;
         textArea.style.top = "0";
         textArea.style.left = "0";
         textArea.style.position = "fixed";
+
         document.body.appendChild(textArea);
+
         textArea.focus();
         textArea.select();
+
         try {
+
             const successful = document.execCommand('copy');
+
             if (successful) {
+
                 const label = el.querySelector('span') || el;
                 const original = label.innerText;
+
                 label.innerText = 'Copied Link!';
+
                 setTimeout(() => label.innerText = original, 1200);
+
             }
+
         } catch (err) {
+
             console.error('Fallback: unable to copy', err);
+
         }
+
         document.body.removeChild(textArea);
+
     }
 
     function copyText(text, el) {
+
         const label = el.querySelector('span') || el;
         const original = label.innerText;
+
         if (!navigator.clipboard) {
+
             fallbackCopyTextToClipboard(text, el);
             return;
+
         }
+
         navigator.clipboard.writeText(text).then(function () {
+
             label.innerText = 'Copied Link!';
+
             setTimeout(() => label.innerText = original, 1200);
+
         }, function (err) {
+
             console.error('Async: Could not copy text: ', err);
+
             fallbackCopyTextToClipboard(text, el);
+
         });
+
     }
 
     function formatSeconds(sec) {
+
         if (sec < 0) sec = 0;
+
         const h = Math.floor(sec / 3600).toString().padStart(2, '0');
         const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
         const s = Math.floor(sec % 60).toString().padStart(2, '0');
+
         return `${h}:${m}:${s}`;
+
     }
 
     document.addEventListener("DOMContentLoaded", () => {
+
+        let storedSessionView = 'grid';
+        let storedMediaView = 'grid';
+
+        try {
+            storedSessionView =
+                localStorage.getItem('activeSessionView') || 'grid';
+
+            storedMediaView =
+                localStorage.getItem('recentMediaView') || 'grid';
+        } catch (error) {
+        }
+
+        setSessionView(storedSessionView);
+        setMediaView(storedMediaView);
+
         const pageLoadTime = Date.now();
+
         document.querySelectorAll('.local-time').forEach(el => {
+
             const utcStr = el.getAttribute('data-utc');
+
             if (utcStr) {
+
                 const date = new Date(utcStr.replace(' ', 'T') + 'Z');
-                el.innerText = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+                el.innerText = date.toLocaleTimeString([], {
+                    hour: 'numeric',
+                    minute: '2-digit'
+                });
+
             }
+
         });
 
         function updateSessionTimers() {
-            const now = Date.now();
-            document.querySelectorAll('.session-card').forEach(card => {
-                const runtimeEl = card.querySelector('.runtime');
-                const remainingEl = card.querySelector('.remaining');
 
-                if (runtimeEl && remainingEl) {
-                    const isPaused = runtimeEl.getAttribute('data-paused') === 'true';
-                    let initialElapsed = parseInt(runtimeEl.getAttribute('data-elapsed'), 10);
-                    if (isNaN(initialElapsed)) initialElapsed = 0;
-                    const duration = parseInt(remainingEl.getAttribute('data-duration'), 10) || 7200;
-                    let elapsedSecs = initialElapsed;
-                    if (!isPaused) {
-                        elapsedSecs += Math.floor((now - pageLoadTime) / 1000);
+            const now = Date.now();
+
+            document.querySelectorAll('.session-card').forEach(card => {
+
+                const runtimeEls = card.querySelectorAll('.runtime');
+                const remainingEls = card.querySelectorAll('.remaining');
+
+                if (runtimeEls.length && remainingEls.length) {
+
+                    const runtimeEl = runtimeEls[0];
+                    const remainingEl = remainingEls[0];
+
+                    const isPaused =
+                        runtimeEl.getAttribute('data-paused') === 'true';
+
+                    let initialElapsed = parseInt(
+                        runtimeEl.getAttribute('data-elapsed'), 10
+                    );
+
+                    if (isNaN(initialElapsed)) {
+                        initialElapsed = 0;
                     }
+
+                    const duration = parseInt(
+                        remainingEl.getAttribute('data-duration'), 10
+                    ) || 7200;
+
+                    let elapsedSecs = initialElapsed;
+
+                    if (!isPaused) {
+
+                        elapsedSecs += Math.floor(
+                            (now - pageLoadTime) / 1000
+                        );
+
+                    }
+
                     const remainSecs = duration - elapsedSecs;
 
                     if (remainSecs <= 0 && !isPaused) {
+
                         window.location.reload();
+
                     } else {
-                        runtimeEl.innerText = formatSeconds(elapsedSecs);
-                        remainingEl.innerText = formatSeconds(Math.max(0, remainSecs));
+
+                        const runtimeText = formatSeconds(elapsedSecs);
+                        const remainingText = formatSeconds(
+                            Math.max(0, remainSecs)
+                        );
+
+                        runtimeEls.forEach(el => {
+                            el.innerText = runtimeText;
+                        });
+
+                        remainingEls.forEach(el => {
+                            el.innerText = remainingText;
+                        });
+
                     }
+
                 }
+
             });
+
         }
 
         updateSessionTimers();
+
         setInterval(updateSessionTimers, 1000);
+
     });
 
     let currentTicketsSessionId = null;
     let ticketsPollInterval = null;
 
     function openTicketsModal(sessionId, title) {
+
         currentTicketsSessionId = sessionId;
-        document.getElementById('ticketsModalTitle').innerText = 'Valid Tickets for ' + title;
+
+        document.getElementById('ticketsModalTitle').innerText =
+            'Valid Tickets for ' + title;
+
         document.getElementById('ticketsModal').classList.add('show');
+
         fetchTickets();
+
         ticketsPollInterval = setInterval(fetchTickets, 2000);
+
     }
 
     function closeTicketsModal() {
+
         document.getElementById('ticketsModal').classList.remove('show');
+
         currentTicketsSessionId = null;
+
         clearInterval(ticketsPollInterval);
+
     }
 
     function fetchTickets() {
+
         if (!currentTicketsSessionId) return;
+
         fetch(`/sessions/${currentTicketsSessionId}/tickets`)
+
             .then(res => res.json())
+
             .then(data => {
+
                 const grid = document.getElementById('ticketsModalGrid');
+
                 grid.innerHTML = '';
+
                 data.tickets.forEach(ticket => {
+
                     const card = document.createElement('div');
                     card.className = 'ticket-card';
 
                     const tn = document.createElement('div');
+
                     tn.className = 'ticket-number';
                     tn.innerText = ticket.ticket_number;
+
                     card.appendChild(tn);
 
                     const status = document.createElement('div');
+
                     if (ticket.is_banned === 1) {
+
                         status.className = 'ticket-status-banned';
                         status.innerText = 'Banned';
+
                     } else if (ticket.currently_active === 1) {
+
                         status.className = 'ticket-status-active';
                         status.innerText = '● Active';
+
                     } else if (ticket.is_used === 1) {
+
                         status.className = 'ticket-status-used';
                         status.innerText = 'Used (Inactive)';
+
                     } else {
+
                         status.className = 'ticket-status-avail';
                         status.innerText = 'Available';
+
                     }
+
                     card.appendChild(status);
-                    
+
                     const actions = document.createElement('div');
                     actions.className = 'ticket-actions';
-                    
+
                     const endBtn = document.createElement('button');
+
                     endBtn.innerText = 'End';
                     endBtn.className = 'btn btn-secondary btn-sm flex-1';
+
                     endBtn.onclick = () => {
-                        fetch(`/admin/tickets/${ticket.id}/end`, { method: 'POST' });
+
+                        fetch(`/admin/tickets/${ticket.id}/end`, {
+                            method: 'POST'
+                        });
+
                     };
-                    
+
                     const banBtn = document.createElement('button');
+
                     banBtn.innerText = 'Ban';
                     banBtn.className = 'btn btn-danger btn-sm flex-1';
-                    if (ticket.is_banned === 1) banBtn.disabled = true;
+
+                    if (ticket.is_banned === 1) {
+                        banBtn.disabled = true;
+                    }
+
                     banBtn.onclick = () => {
-                        fetch(`/admin/tickets/${ticket.id}/ban`, { method: 'POST' });
+
+                        fetch(`/admin/tickets/${ticket.id}/ban`, {
+                            method: 'POST'
+                        });
+
                     };
-                    
+
                     actions.appendChild(endBtn);
                     actions.appendChild(banBtn);
-                    card.appendChild(actions);
 
+                    card.appendChild(actions);
                     grid.appendChild(card);
+
                 });
+
             })
+
             .catch(err => console.error(err));
+
     }
+
 </script>
 
 {% endblock %}
