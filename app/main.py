@@ -757,7 +757,7 @@ async def get_session_state(request: Request, session_id: int, db: sqlite3.Conne
         if not ticket:
             return JSONResponse({"detail": "Your break session has timed out or was ended by the administrator."}, status_code=403)
         if ticket['is_banned']:
-            return JSONResponse({"detail": "Ticket banned for watermark tampering."}, status_code=403)
+            return JSONResponse({"detail": "Ticket banned."}, status_code=403)
             
         # Check ticket break duration timeout
         cursor.execute("SELECT value FROM settings WHERE key = 'session_timeout_minutes'")
@@ -933,7 +933,7 @@ async def view_player(request: Request, join_code: str, db: sqlite3.Connection =
     if ticket['is_banned']:
         html_content = """
         <html><head><title>Access Revoked</title><link rel="stylesheet" href="/static/main.css"><script src="https://unpkg.com/lucide@latest"></script></head><body style="background:#000;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;font-family:sans-serif;">
-        <div style="text-align:center;"><i data-lucide="shield-alert" style="width:80px;height:80px;color:#e50914;"></i><h2 style="color:#e50914;font-size:2em;margin-top:20px;">Access Revoked</h2><p style="font-size:1.2em;color:#aaa;">Ticket banned for watermark tampering.</p></div>
+        <div style="text-align:center;"><i data-lucide="shield-alert" style="width:80px;height:80px;color:#e50914;"></i><h2 style="color:#e50914;font-size:2em;margin-top:20px;">Access Revoked</h2><p style="font-size:1.2em;color:#aaa;">Ticket banned.</p></div>
         <script>lucide.createIcons();</script></body></html>
         """
         return HTMLResponse(content=html_content, status_code=403)
